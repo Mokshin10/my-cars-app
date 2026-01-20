@@ -48,17 +48,15 @@ body {
     color: var(--text);
     line-height: 1.6;
     padding: 15px;
-    max-width: 1200px;
-    margin: 0 auto;
     min-height: 100vh;
-    transition: all 0.3s ease;
 }
 
 .container {
+    max-width: 1200px;
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
     gap: 20px;
-    width: 100%;
 }
 
 /* Панель выбора темы */
@@ -279,7 +277,6 @@ body {
     padding-bottom: 15px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 10px;
-    width: 100%;
 }
 
 @media (min-width: 769px) {
@@ -319,7 +316,6 @@ body {
     gap: 10px;
     flex-wrap: wrap;
     justify-content: center;
-    width: 100%;
 }
 
 @media (min-width: 769px) {
@@ -398,7 +394,6 @@ body {
     display: flex;
     margin: 10px 0 15px;
     position: relative;
-    width: 100%;
 }
 
 .search-input {
@@ -412,8 +407,6 @@ body {
     outline: none;
     transition: border-color 0.3s;
     padding-right: 45px;
-    width: 100%;
-    min-width: 0;
 }
 
 .search-input:focus {
@@ -434,7 +427,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    width: 100%;
 }
 
 @media (min-width: 769px) {
@@ -450,7 +442,6 @@ body {
     border-radius: 12px;
     padding: 15px;
     border: 1px solid var(--border);
-    width: 100%;
 }
 
 .section-title {
@@ -469,7 +460,6 @@ body {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 12px;
     margin-bottom: 15px;
-    width: 100%;
 }
 
 @media (max-width: 480px) {
@@ -483,7 +473,6 @@ body {
     padding: 10px;
     border-radius: 8px;
     border-left: 4px solid var(--primary);
-    min-width: 0;
 }
 
 .stat-label {
@@ -496,10 +485,10 @@ body {
     font-size: 16px;
     font-weight: 600;
     color: var(--text-light);
-    word-break: break-word;
 }
 
-/* Таблица ремонтов */
+/* ==================== ТАБЛИЦА РЕМОНТОВ - ДЕСКТОПНАЯ ВЕРСИЯ ==================== */
+
 .table-container {
     width: 100%;
     overflow-x: auto;
@@ -913,56 +902,6 @@ body {
     }
 }
 
-/* Адаптивность */
-@media (max-width: 480px) {
-    body {
-        padding: 10px;
-    }
-    
-    .logo-text {
-        font-size: 18px;
-    }
-    
-    .logo-subtext {
-        font-size: 12px;
-    }
-    
-    .car-option {
-        min-width: calc(50% - 10px);
-        max-width: calc(50% - 10px);
-    }
-    
-    .section-title {
-        font-size: 15px;
-    }
-    
-    .car-stats {
-        gap: 8px;
-    }
-    
-    .stat-item {
-        padding: 8px;
-    }
-    
-    .stat-label {
-        font-size: 11px;
-    }
-    
-    .stat-value {
-        font-size: 14px;
-    }
-    
-    .form-input, .form-textarea {
-        font-size: 13px;
-        padding: 8px 12px;
-    }
-    
-    .btn {
-        padding: 8px 12px;
-        font-size: 12px;
-    }
-}
-
 /* Сообщение о пустом результате поиска */
 .no-results {
     text-align: center;
@@ -1052,152 +991,181 @@ body {
     margin-top: 20px;
 }
 
-/* ==================== ИСПРАВЛЕНИЯ ДЛЯ МОБИЛЬНОЙ ВЕРСИИ ==================== */
+/* ==================== МОБИЛЬНАЯ ВЕРСИЯ ТАБЛИЦЫ ==================== */
 
 @media (max-width: 768px) {
-    /* Улучшаем таблицу на мобильных */
+    /* НЕ скрываем таблицу, а перестраиваем ее отображение */
     .repairs-table {
-        font-size: 12px;
+        width: 100% !important;
         min-width: 100% !important;
-    }
-    
-    .repairs-table th,
-    .repairs-table td {
-        padding: 8px 6px;
-        font-size: 12px;
-    }
-    
-    .repair-part,
-    .repair-price,
-    .repair-sto {
-        font-size: 12px;
-    }
-    
-    .details-table th,
-    .details-table td {
-        padding: 6px;
-        font-size: 11px;
-    }
-    
-    .total-label,
-    .total-value {
-        font-size: 14px;
-    }
-    
-    /* Детали ремонта на всю ширину */
-    .repair-details {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        padding: 15px !important;
-        border-radius: 0 0 8px 8px !important;
-        border-top: none !important;
-    }
-    
-    /* Строка с деталями ремонта */
-    .repair-details-row {
-        display: block !important;
-        width: 100% !important;
-    }
-    
-    .repair-details-row td {
-        display: block !important;
-        width: 100% !important;
-        padding: 0 !important;
-    }
-    
-    /* Карточка ремонта на всю ширину */
-    .repairs-table tbody tr[data-repair-id] {
-        width: 100% !important;
-        display: block !important;
-        margin-bottom: 12px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background-color: var(--surface);
-    }
-    
-    .repairs-table tbody tr[data-repair-id] td {
-        display: block !important;
-        width: 100% !important;
-        padding: 12px 15px !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    
-    .repairs-table tbody tr[data-repair-id] td:last-child {
-        border-bottom: none;
-    }
-    
-    /* Мобильная карточка ремонта */
-    .mobile-repair-card {
-        width: 100% !important;
-    }
-    
-    .mobile-repair-header {
-        width: 100% !important;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-    
-    .mobile-repair-info {
-        width: 100% !important;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    
-    /* Таблицы внутри деталей */
-    .details-table {
-        width: 100% !important;
+        display: table !important;
+        border-collapse: collapse !important;
         table-layout: fixed !important;
     }
     
-    .details-table th,
-    .details-table td {
-        padding: 8px 4px !important;
-        word-break: break-word !important;
+    /* Скрываем заголовки на мобильных */
+    .repairs-table thead {
+        display: none;
     }
     
-    /* Секции внутри деталей */
-    .details-section {
+    /* Делаем строки блочными и превращаем в карточки */
+    .repairs-table tbody tr {
+        display: block;
         width: 100% !important;
+        max-width: 100vw !important;
+        min-width: 78vw !important;
+        margin: 0 0 12px 0 !important;
+        padding: 16px !important;
+        background-color: var(--surface) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+        box-shadow: var(--shadow) !important;
+        box-sizing: border-box !important;
     }
     
-    /* Улучшаем отображение цен */
-    .work-price, .part-price {
-        white-space: nowrap !important;
+    /* Делаем ячейки блочными и на всю ширину */
+    .repairs-table tbody tr td {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 5px 0 !important;
+        border: none !important;
+        text-align: left !important;
     }
     
-    .total-value {
-        white-space: nowrap !important;
+    /* Особые стили для ячеек в карточке */
+    .repairs-table tbody tr td:nth-child(1) {
+        font-weight: 600;
+        color: var(--text-light);
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+    
+    .repairs-table tbody tr td:nth-child(2) {
+        color: var(--warning);
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+    
+    .repairs-table tbody tr td:nth-child(3) {
+        color: var(--text-light);
+        font-weight: 600;
+        font-size: 15px;
+        margin-bottom: 12px;
+        word-break: break-word;
+    }
+    
+    .repairs-table tbody tr td:nth-child(4) {
+        color: var(--text);
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+    
+    .repairs-table tbody tr td:nth-child(5) {
+        color: var(--success);
+        font-weight: 600;
+        font-size: 15px;
+        text-align: left !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 10px !important;
+    }
+    
+    /* Обработка строки с деталями ремонта */
+    .repair-details-row {
+        margin-top: -12px !important;
+        margin-bottom: 20px !important;
+        border-radius: 0 0 12px 12px !important;
+        padding: 0 16px 16px 16px !important;
+        background-color: rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    .repair-details-row td {
+        padding: 0 !important;
+    }
+    
+    /* Детали ремонта на мобильных - растягиваем на всю ширину */
+    .repair-details {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 15px !important;
+        border-radius: 8px !important;
+        border: 1px solid var(--border) !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Таблицы внутри деталей - добавляем горизонтальную прокрутку */
+    .details-table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .details-table table {
+        min-width: 100%;
+    }
+    
+    /* Кнопки на мобильных */
+    .btn {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    
+    .repair-actions {
+        flex-direction: column;
+    }
+    
+    /* Дополнительные адаптивные стили */
+    body {
+        padding: 10px;
+    }
+    
+    .container {
+        gap: 15px;
+    }
+    
+    .car-option {
+        min-width: calc(50% - 5px);
     }
 }
 
-/* Прокрутка для очень маленьких экранов */
-@media (max-width: 320px) {
-    .car-option {
-        min-width: 100%;
-        max-width: 100%;
-    }
-    
+/* Адаптивность для очень маленьких экранов */
+@media (max-width: 480px) {
     .car-stats {
         grid-template-columns: 1fr;
     }
     
-    .btn {
-        width: 100%;
+    .logo-text {
+        font-size: 18px;
     }
     
-    .file-actions {
-        gap: 8px;
+    .logo-subtext {
+        font-size: 12px;
+    }
+    
+    .section-title {
+        font-size: 15px;
+    }
+    
+    .form-input, .form-textarea {
+        font-size: 13px;
+        padding: 8px 12px;
+    }
+    
+    /* Еще более компактные карточки */
+    .repairs-table tbody tr {
+        padding: 14px !important;
+    }
+    
+    .repairs-table tbody tr td:nth-child(3) {
+        font-size: 14px;
+    }
+    
+    .repairs-table tbody tr td:nth-child(5) {
+        font-size: 14px;
     }
 }
 
@@ -1234,8 +1202,7 @@ body {
     color: var(--accent);
 }
 
-/* ==================== СВОРАЧИВАЕМЫЙ БЛОК ИНФОРМАЦИИ ОБ АВТО ==================== */
-
+/* Сворачиваемый блок информации об авто */
 .car-info-header {
     display: flex;
     align-items: center;
@@ -1264,173 +1231,4 @@ body {
     margin-bottom: 0;
     padding: 0;
     border: none;
-}
-
-/* ==================== АДАПТИВНАЯ ТАБЛИЦА ЗАПЧАСТЕЙ ==================== */
-
-/* Делаем таблицу запчастей адаптивной */
-.details-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    min-width: auto !important;
-}
-
-/* Автоматическое скрытие пустых столбцов */
-.details-table th.hide-if-empty,
-.details-table td.hide-if-empty {
-    /* Колонки будут скрываться через JavaScript */
-}
-
-/* Компактный вид для мобильных */
-@media (max-width: 768px) {
-    .details-table {
-        font-size: 11px !important;
-    }
-    
-    .details-table th,
-    .details-table td {
-        padding: 6px 4px !important;
-        font-size: 11px;
-    }
-    
-    /* На очень маленьких экранах скрываем неважные колонки */
-    @media (max-width: 480px) {
-        .details-table th:nth-child(3), /* Артикул */
-        .details-table td:nth-child(3) {
-            display: none;
-        }
-        
-        .details-table th:nth-child(2), /* Производитель */
-        .details-table td:nth-child(2) {
-            max-width: 60px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-    }
-}
-
-/* Исправление для таблиц на десктопе */
-@media (min-width: 769px) {
-    .details-table {
-        width: 100% !important;
-        table-layout: auto !important;
-    }
-    
-    .details-table th,
-    .details-table td {
-        word-break: break-word;
-        vertical-align: top;
-    }
-    
-    .details-table td:last-child {
-        white-space: nowrap;
-    }
-}
-
-/* Улучшаем отображение таблицы запчастей */
-.details-table {
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-.details-table th {
-    padding: 8px 6px;
-    background-color: rgba(0, 0, 0, 0.2);
-    position: relative;
-    border-bottom: 2px solid var(--border);
-}
-
-.details-table td {
-    padding: 10px 6px;
-    vertical-align: top;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.details-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-/* Уменьшаем отступы для мобильных */
-@media (max-width: 768px) {
-    .details-table th,
-    .details-table td {
-        padding: 6px 4px !important;
-    }
-}
-
-/* ==================== ДОПОЛНИТЕЛЬНЫЕ ИСПРАВЛЕНИЯ ==================== */
-
-/* Исправление ширины карточек на мобильных */
-@media (max-width: 768px) {
-    /* Гарантируем, что карточки ремонта будут на всю ширину */
-    .repairs-table tbody tr[data-repair-id],
-    .repairs-table tbody tr.repair-details-row {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 100% !important;
-        display: block !important;
-        float: none !important;
-        clear: both !important;
-    }
-    
-    /* Гарантируем, что ячейки внутри карточек будут на всю ширину */
-    .repairs-table tbody tr[data-repair-id] td,
-    .repairs-table tbody tr.repair-details-row td {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 100% !important;
-        display: block !important;
-        float: none !important;
-    }
-    
-    /* Гарантируем, что детали ремонта будут на всю ширину */
-    .repair-details {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 100% !important;
-        display: block !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        padding: 15px !important;
-    }
-    
-    /* Фиксируем контейнер таблицы */
-    .table-container {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 100% !important;
-        display: block !important;
-        overflow: hidden !important;
-    }
-    
-    /* Фиксируем саму таблицу */
-    .repairs-table {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 100% !important;
-        display: block !important;
-    }
-}
-
-/* Исправление для очень маленьких экранов */
-@media (max-width: 360px) {
-    .mobile-repair-header,
-    .mobile-repair-info {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 6px;
-    }
-    
-    .mobile-repair-date,
-    .mobile-repair-mileage,
-    .repair-sto,
-    .repair-price {
-        width: 100% !important;
-        text-align: left !important;
-    }
-    
-    .repair-price {
-        text-align: right !important;
-    }
 }
