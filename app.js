@@ -83,27 +83,47 @@ function hideAuthModal() {
 }
 
 async function loginUser() {
-    // ... существующий код ...
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
     
+    if (!email || !password) {
+        showStatus('Пожалуйста, заполните все поля', 'error');
+        return;
+    }
+    
+    // Для тестового аккаунта
     if (email === 'Mokshin10@gmail.com' && password === 'Vjriby') {
         try {
-            // ... существующий код ...
+            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            currentUser = userCredential.user;
+            isGuestMode = false;
             
-            // После успешного входа проверяем тему пользователя
-            if (userSettings && userSettings.theme) {
-                // Если у пользователя есть сохраненная тема в настройках
-                switchTheme(userSettings.theme, false);
+            // Загружаем данные пользователя
+            await loadUserData();
+            
+            // Обновляем интерфейс
+            updateUIForAuthState();
+            hideAuthModal();
+            
+            // Если была попытка редактирования, выполняем действие
+            if (isEditingAction && editingRepairId) {
+                openEditForm(editingRepairId);
+                isEditingAction = false;
+                editingRepairId = null;
             } else {
-                // Иначе используем тему из localStorage
-                const savedTheme = localStorage.getItem('myCarsTheme') || 'arch';
-                switchTheme(savedTheme, false);
+                updateCarInfo();
+                updateRepairsTable();
+                updateCarStatsDisplay();
             }
             
-            // ... остальной код ...
+            showStatus('Успешный вход!', 'success');
             
         } catch (error) {
-            // ... обработка ошибок ...
+            console.error('Ошибка входа:', error);
+            showStatus(getErrorMessage(error), 'error');
         }
+    } else {
+        showStatus('Неверный email или пароль', 'error');
     }
 }
 
@@ -130,7 +150,24 @@ async function createInitialUserData() {
 }
 
 function logoutUser() {
-    auth.signOut();
+    // Если были в гостевом режиме (авторизованы как гость), не выходим из Firebase
+    // чтобы сохранить возможность загружать данные
+    if (!isGuestMode) {
+        auth.signOut();
+        currentUser = null;
+        userSettings = null;
+    }
+    
+    isGuestMode = true;
+    updateUIForAuthState();
+    
+    // Обновляем данные из гостевого аккаунта
+    loadGuestData().then(() => {
+        updateCarInfo();
+        updateRepairsTable();
+        updateCarStatsDisplay();
+        showStatus('Переход в гостевой режим. Данные загружены.', 'info');
+    });
 }
 
 function checkAuthBeforeEdit(actionCallback, repairId = null) {
@@ -139,7 +176,7 @@ function checkAuthBeforeEdit(actionCallback, repairId = null) {
         editingRepairId = repairId;
         showAuthModal();
     } else {
-        actionCallback();
+        actionCallback(repairId);
     }
 }
 
@@ -156,7 +193,7 @@ function updateUIForAuthState() {
         modeIndicator.classList.remove('mode-authorized');
         modeIndicator.classList.add('mode-guest');
         modeText.textContent = 'Гостевой режим (только просмотр)';
-        userInfo.textContent = 'Гостевой доступ к данным';
+        userInfo.textContent = 'Загружены реальные данные';
     } else {
         logoutBtn.style.display = 'flex';
         loginBtn.style.display = 'none';
@@ -243,93 +280,116 @@ async function loadGuestData() {
     try {
         if (guestDataLoaded) return true;
         
-        // Загружаем начальные данные
-        await loadInitialGuestData();
+        console.log('Загрузка гостевых данных напрямую из аккаунта...');
         
-        // Затем пробуем загрузить из аккаунта по умолчанию
+        // Креденшалы для гостевого доступа (только чтение)
+        const guestEmail = 'Mokshin10@gmail.com';
+        const guestPassword = 'Vjriby';
+        
         try {
-            // Создаем временную аутентификацию
-            await auth.signInWithEmailAndPassword('Mokshin10@gmail.com', 'Vjriby');
+            // Входим в аккаунт для загрузки данных
+            await auth.signInWithEmailAndPassword(guestEmail, guestPassword);
             const tempUser = auth.currentUser;
             
             if (tempUser) {
+                console.log('Гостевая авторизация успешна, загружаем данные...');
+                
+                // Загружаем данные пользователя
                 const userCarsRef = db.collection('userCars').doc(tempUser.uid);
                 const userCarsDoc = await userCarsRef.get();
                 
                 if (userCarsDoc.exists) {
                     const data = userCarsDoc.data();
                     if (data.carData) {
-                        carData = mergeCarData(carData, data.carData);
+                        console.log('Данные успешно загружены из аккаунта');
+                        
+                        // ПОЛНОСТЬЮ заменяем текущие данные на данные из аккаунта
+                        // Это важно - чтобы не было остатков от демо-данных
+                        carData = JSON.parse(JSON.stringify(data.carData));
+                        
+                        // Убеждаемся, что все поля есть
+                        ['focus', 'peugeot'].forEach(carKey => {
+                            if (carData[carKey]) {
+                                // Убеждаемся, что есть все обязательные поля
+                                if (!carData[carKey].repairs) carData[carKey].repars = [];
+                                if (!carData[carKey].model) carData[carKey].model = carKey === 'focus' ? 'Ford Focus 3' : 'Peugeot 207';
+                                if (!carData[carKey].year) carData[carKey].year = carKey === 'focus' ? 2012 : 2008;
+                                if (!carData[carKey].color) carData[carKey].color = carKey === 'focus' ? 'Серебристый' : 'Синий';
+                                if (!carData[carKey].totalSpent) carData[carKey].totalSpent = 0;
+                                if (!carData[carKey].totalRepairs) carData[carKey].totalRepairs = 0;
+                                if (!carData[carKey].lastRepair) carData[carKey].lastRepair = '';
+                            }
+                        });
+                        
+                        // Обновляем текущий автомобиль если нужно
+                        if (!carData[currentCar]) {
+                            currentCar = Object.keys(carData)[0] || 'focus';
+                        }
+                        
                         guestDataLoaded = true;
-                        
-                        // Сохраняем локально
-                        localStorage.setItem('myCarsGuestData', JSON.stringify(carData));
-                        localStorage.setItem('myCarsGuestDataTimestamp', Date.now().toString());
-                        
-                        showStatus('Данные успешно загружены', 'success');
+                        console.log('carData после загрузки:', {
+                            focus: { repairs: carData.focus?.repairs?.length || 0 },
+                            peugeot: { repairs: carData.peugeot?.repairs?.length || 0 }
+                        });
+                    } else {
+                        console.error('carData не найдено в документе пользователя');
                     }
+                } else {
+                    console.error('Документ пользователя не найден');
                 }
                 
-                // Выходим из временного аккаунта
-                await auth.signOut();
+                // НЕ ВЫХОДИМ из аккаунта сразу - оставляем авторизованным
+                // для возможности обновления данных в реальном времени
+                console.log('Остаемся в гостевой авторизации для обновления данных');
+                
+            } else {
+                console.error('Не удалось войти в гостевой аккаунт');
             }
-        } catch (guestAuthError) {
-            console.log('Не удалось загрузить гостевые данные:', guestAuthError);
+            
+        } catch (authError) {
+            console.error('Ошибка гостевой авторизации:', authError);
+            // При ошибке аутентификации используем базовую структуру
+            resetToBasicStructure();
         }
         
-        // Если все еще нет данных, создаем базовые примеры
-        if (!guestDataLoaded || carData.focus.repairs.length === 0) {
-            // Добавляем пример ремонта для Ford Focus
-            const sampleFocusRepair = {
-                id: Date.now() + 1,
-                date: "17.01.2026",
-                mileage: 203418,
-                short_work: "Замена рулевых наконечников и шаровых опор",
-                total_price: 10359,
-                sto: "CLINLIGARAGE",
-                work_items: [
-                    { name: "Замена стойки стабилизатора перед", price: 1800 },
-                    { name: "Замена шаровой опоры без снятия рычага", price: 1800 },
-                    { name: "Замена рулевого наконечника лев", price: 855 }
-                ],
-                part_items: [
-                    { name: "Наконечник рулевой тяги CTR CE0077L", manufacturer: "CTR", article: "CE0077L", quantity: 1, price: 1980 },
-                    { name: "Опора подвески шаровая SIDEM 3881", manufacturer: "SIDEM", article: "3881", quantity: 1, price: 1647 },
-                    { name: "Опора подвески шаровая SIDEM 3880", manufacturer: "SIDEM", article: "3880", quantity: 1, price: 1647 },
-                    { name: "Тяга стабилизатора TRW JTS536", manufacturer: "TRW", article: "JTS536", quantity: 2, price: 912 }
-                ],
-                notes: "Замена рулевых наконечников и шаровых опор"
-            };
-            
-            carData.focus.repairs.push(sampleFocusRepair);
-            guestDataLoaded = true;
-            
-            // Сохраняем локально
-            localStorage.setItem('myCarsGuestData', JSON.stringify(carData));
-            localStorage.setItem('myCarsGuestDataTimestamp', Date.now().toString());
-            
-            showStatus('Загружены демо-данные', 'info');
+        // Если все еще не загружено, сбрасываем
+        if (!guestDataLoaded) {
+            resetToBasicStructure();
         }
         
+        guestDataLoaded = true;
         return true;
+        
     } catch (error) {
-        console.error('Ошибка загрузки гостевых данных:', error);
-        
-        // Используем локальные данные как запасной вариант
-        const localData = localStorage.getItem('myCarsGuestData');
-        if (localData) {
-            try {
-                const parsedData = JSON.parse(localData);
-                carData = mergeCarData(carData, parsedData);
-                guestDataLoaded = true;
-                showStatus('Используются локальные данные', 'warning');
-            } catch (e) {
-                console.error('Ошибка парсинга локальных данных:', e);
-            }
-        }
-        
-        return guestDataLoaded;
+        console.error('Критическая ошибка загрузки гостевых данных:', error);
+        resetToBasicStructure();
+        guestDataLoaded = true;
+        return false;
     }
+}
+
+function resetToBasicStructure() {
+    console.log('Сброс к базовой структуре данных');
+    carData = {
+        "focus": {
+            "model": "Ford Focus 3",
+            "year": 2012,
+            "color": "Серебристый",
+            "totalSpent": 0,
+            "totalRepairs": 0,
+            "lastRepair": "",
+            "repairs": []
+        },
+        "peugeot": {
+            "model": "Peugeot 207",
+            "year": 2008,
+            "color": "Синий",
+            "totalSpent": 0,
+            "totalRepairs": 0,
+            "lastRepair": "",
+            "repairs": []
+        }
+    };
 }
 
 async function loadUserData() {
@@ -365,7 +425,27 @@ async function loadUserData() {
             switchTheme(savedTheme, false);
         }
         
-        // ... остальной код загрузки данных ...
+        // Загружаем данные пользователя
+        const userCarsRef = db.collection('userCars').doc(currentUser.uid);
+        const userCarsDoc = await userCarsRef.get();
+        
+        if (userCarsDoc.exists) {
+            const data = userCarsDoc.data();
+            if (data.carData) {
+                carData = mergeCarData(carData, data.carData);
+            }
+            
+            // Обновляем UI
+            updateCarInfo();
+            updateRepairsTable();
+            updateCarStatsDisplay();
+            
+            return true;
+        } else {
+            // Создаем начальные данные для нового пользователя
+            await createInitialUserData();
+            return true;
+        }
         
     } catch (error) {
         console.error('Ошибка загрузки данных пользователя:', error);
@@ -373,7 +453,8 @@ async function loadUserData() {
         const savedTheme = localStorage.getItem('myCarsTheme') || 'arch';
         switchTheme(savedTheme, false);
         
-        // ... остальной код ...
+        showStatus('Ошибка загрузки данных', 'error');
+        return false;
     }
 }
 
@@ -383,14 +464,23 @@ function mergeCarData(primaryData, secondaryData) {
     Object.keys(secondaryData).forEach(carKey => {
         if (!merged[carKey]) {
             merged[carKey] = secondaryData[carKey];
-        } else if (secondaryData[carKey].repairs) {
-            // Объединяем ремонты
-            secondaryData[carKey].repairs.forEach(newRepair => {
-                const exists = merged[carKey].repairs.some(r => r.id === newRepair.id);
-                if (!exists) {
-                    merged[carKey].repairs.push(newRepair);
+        } else {
+            // Обновляем основные данные автомобиля
+            Object.keys(secondaryData[carKey]).forEach(key => {
+                if (key !== 'repairs') {
+                    merged[carKey][key] = secondaryData[carKey][key];
                 }
             });
+            
+            // Объединяем ремонты
+            if (secondaryData[carKey].repairs && Array.isArray(secondaryData[carKey].repairs)) {
+                secondaryData[carKey].repairs.forEach(newRepair => {
+                    const exists = merged[carKey].repairs.some(r => r.id === newRepair.id);
+                    if (!exists) {
+                        merged[carKey].repairs.push(newRepair);
+                    }
+                });
+            }
         }
     });
     
@@ -400,29 +490,30 @@ function mergeCarData(primaryData, secondaryData) {
 async function saveCarData() {
     try {
         if (isGuestMode) {
-            // В гостевом режиме сохраняем только локально
-            localStorage.setItem('myCarsGuestData', JSON.stringify(carData));
-            localStorage.setItem('myCarsGuestDataTimestamp', Date.now().toString());
+            console.log('Гостевой режим: данные не сохраняются');
             return false;
         }
         
-        if (!currentUser) return false;
+        if (!currentUser) {
+            console.error('Пользователь не авторизован');
+            return false;
+        }
         
-        // Сохраняем локально для оффлайн-работы
-        localStorage.setItem(`myCarsData_${currentUser.uid}`, JSON.stringify(carData));
-        localStorage.setItem(`myCarsDataTimestamp_${currentUser.uid}`, Date.now().toString());
+        console.log('Сохранение данных в Firebase...');
         
-        // Сохраняем в Firebase
+        // Сохраняем только в Firebase
         await db.collection('userCars').doc(currentUser.uid).set({
             email: currentUser.email,
             carData: carData,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         
+        console.log('Данные успешно сохранены в Firebase');
         return true;
+        
     } catch (error) {
         console.error('Ошибка сохранения данных:', error);
-        showStatus('Ошибка сохранения. Данные сохранены локально.', 'warning');
+        showStatus('Ошибка сохранения в Firebase', 'error');
         return false;
     }
 }
@@ -453,7 +544,8 @@ function switchTheme(theme, saveToServer = true) {
         themeBtn.classList.add('active');
     } else {
         // Если кнопка не найдена, активируем Arch
-        document.querySelector('.theme-btn[data-theme="arch"]').classList.add('active');
+        const archBtn = document.querySelector('.theme-btn[data-theme="arch"]');
+        if (archBtn) archBtn.classList.add('active');
     }
     
     // Обновляем текст футера
@@ -528,23 +620,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Отслеживаем состояние аутентификации
     auth.onAuthStateChanged(async user => {
-        if (user) {
+    if (user) {
+        // Если это ваш основной аккаунт (по email)
+        if (user.email === 'Mokshin10@gmail.com') {
             currentUser = user;
             isGuestMode = false;
             
+            console.log('Основной пользователь вошел:', user.email);
+            
             // Загружаем данные пользователя
             await loadUserData();
-            
-            // ОБНОВЛЯЕМ ТЕМУ после загрузки настроек пользователя
-            if (userSettings && userSettings.theme) {
-                // Проверяем, совпадает ли тема с localStorage
-                const localStorageTheme = localStorage.getItem('myCarsTheme');
-                if (localStorageTheme !== userSettings.theme) {
-                    // Если нет, обновляем localStorage
-                    localStorage.setItem('myCarsTheme', userSettings.theme);
-                    switchTheme(userSettings.theme, false);
-                }
-            }
             
             // Обновляем интерфейс
             updateUIForAuthState();
@@ -553,15 +638,10 @@ document.addEventListener('DOMContentLoaded', function() {
             updateCarStatsDisplay();
             
         } else {
-            currentUser = null;
+            // Если это гостевая авторизация
+            console.log('Гостевая авторизация активна');
             isGuestMode = true;
-            
-            // В гостевом режиме используем тему из localStorage
-            const savedTheme = localStorage.getItem('myCarsTheme') || 'arch';
-            switchTheme(savedTheme, false);
-            
-            // Обновляем интерфейс
-            updateUIForAuthState();
+            currentUser = null;
             
             // Загружаем гостевые данные
             if (!guestDataLoaded) {
@@ -570,36 +650,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateRepairsTable();
                 updateCarStatsDisplay();
             }
+            
+            updateUIForAuthState();
         }
-    });
-    
-    // ... остальные обработчики событий ...
+        
+    } else {
+        // Если никто не авторизован - автоматически входим в гостевой режим
+        console.log('Нет авторизации, пытаемся войти как гость...');
+        isGuestMode = true;
+        currentUser = null;
+        
+        try {
+            // Пробуем войти как гость
+            await auth.signInWithEmailAndPassword('Mokshin10@gmail.com', 'Vjriby');
+            // После успешного входа сработает onAuthStateChanged снова
+        } catch (error) {
+            console.error('Не удалось войти в гостевой режим:', error);
+            // При ошибке просто показываем интерфейс
+            updateUIForAuthState();
+        }
+    }
+});
 });
 
 async function initApp() {
-    // Загружаем гостевые данные
-    await loadGuestData();
+    // Загружаем сохраненную тему ПЕРВЫМ делом
+    loadSavedTheme();
     
-    // Если все еще нет данных, показываем сообщение
-    if (!guestDataLoaded || carData[currentCar].repairs.length === 0) {
-        // Создаем минимальный пример
-        carData.focus.repairs.push({
-            id: Date.now(),
-            date: "17.01.2026",
-            mileage: 203418,
-            short_work: "Пример ремонта",
-            total_price: 10359,
-            sto: "CLINLIGARAGE",
-            work_items: [{ name: "Замена запчастей", price: 4455 }],
-            part_items: [{ name: "Пример запчасти", price: 5904 }],
-            notes: "Это демо-данные. Войдите в систему для загрузки реальных данных."
-        });
-    }
-    
-    updateCarInfo();
-    updateRepairsTable();
-    updateCarStatsDisplay();
-    setSortIndicator('date', 'desc');
+    // Настраиваем обработчики событий
     setupEventListeners();
     
     // Восстанавливаем состояние свернутого блока
@@ -617,6 +695,12 @@ async function initApp() {
     
     // Инициализируем UI
     updateUIForAuthState();
+    
+    // Устанавливаем индикатор сортировки
+    setSortIndicator('date', 'desc');
+    
+    // Данные загружаются автоматически через auth.onAuthStateChanged
+    console.log('Приложение инициализировано, ожидание загрузки данных...');
 }
 
 function setupEventListeners() {
@@ -638,19 +722,121 @@ function setupEventListeners() {
         });
     });
     
-    // ... остальные обработчики ...
+    // Кнопки входа/выхода
+    document.getElementById('loginBtnMain')?.addEventListener('click', showAuthModal);
+    document.getElementById('logoutBtn')?.addEventListener('click', logoutUser);
+    
+    // Кнопки модального окна
+    document.getElementById('loginBtn')?.addEventListener('click', loginUser);
+    document.getElementById('cancelAuthBtn')?.addEventListener('click', hideAuthModal);
+    
+    // Выбор автомобиля
+    document.querySelectorAll('.car-option').forEach(option => {
+        option.addEventListener('click', function() {
+            document.querySelectorAll('.car-option').forEach(o => o.classList.remove('active'));
+            this.classList.add('active');
+            currentCar = this.getAttribute('data-car');
+            expandedRepairId = null;
+            updateCarInfo();
+            updateRepairsTable();
+            updateCarStatsDisplay();
+        });
+    });
+    
+    // Сворачивание блока статистики
+    const carInfoToggle = document.getElementById('carInfoToggle');
+    if (carInfoToggle) {
+        carInfoToggle.addEventListener('click', function() {
+            const carStats = document.getElementById('carStats');
+            const isCollapsed = carStats.classList.contains('collapsed');
+            const icon = this.querySelector('.fa-chevron-down');
+            
+            if (isCollapsed) {
+                carStats.classList.remove('collapsed');
+                if (icon) icon.style.transform = 'rotate(0deg)';
+                localStorage.setItem('carStatsCollapsed', 'false');
+            } else {
+                carStats.classList.add('collapsed');
+                if (icon) icon.style.transform = 'rotate(-90deg)';
+                localStorage.setItem('carStatsCollapsed', 'true');
+            }
+        });
+    }
+    
+    // Поиск
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            performSearch(this.value);
+        });
+    }
+    
+    // Очистка поиска
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            searchTerm = '';
+            updateRepairsTable();
+        });
+    }
+    
+    // Сортировка таблицы
+    document.querySelectorAll('.repairs-table th[data-sort]').forEach(th => {
+        th.addEventListener('click', function() {
+            const sortField = this.getAttribute('data-sort');
+            sortTable(sortField);
+        });
+    });
+    
+    // Кнопки управления ремонтами
+    document.getElementById('addRepairBtn')?.addEventListener('click', function() {
+        if (isGuestMode) {
+            showAuthModal();
+            return;
+        }
+        document.getElementById('addRepairForm').classList.add('active');
+        document.getElementById('editRepairForm').classList.remove('active');
+        document.getElementById('dataSection').style.display = 'none';
+    });
+    
+    document.getElementById('saveRepairBtn')?.addEventListener('click', saveRepair);
+    document.getElementById('cancelRepairBtn')?.addEventListener('click', closeAllForms);
+    document.getElementById('updateRepairBtn')?.addEventListener('click', updateRepair);
+    document.getElementById('cancelEditBtn')?.addEventListener('click', closeAllForms);
+    document.getElementById('deleteRepairBtn')?.addEventListener('click', deleteRepair);
+    
+    // Работа с файлами
+    document.getElementById('saveToFileBtn')?.addEventListener('click', saveToFile);
+    document.getElementById('loadFromFileBtn')?.addEventListener('click', function() {
+        document.getElementById('fileInput').click();
+    });
+    document.getElementById('exportJsonBtn')?.addEventListener('click', exportJson);
+    document.getElementById('addSampleDataBtn')?.addEventListener('click', addSampleData);
+    document.getElementById('mergeDataBtn')?.addEventListener('click', mergeData);
+    
+    // Загрузка файла
+    document.getElementById('fileInput')?.addEventListener('change', handleFileUpload);
+    
+    // Сворачивание структуры данных
+    const toggleStructureBtn = document.getElementById('toggleStructureBtn');
+    if (toggleStructureBtn) {
+        toggleStructureBtn.addEventListener('click', toggleStructure);
+    }
 }
 
 // ==================== ФУНКЦИИ РЕМОНТОВ ====================
 
 function updateCarInfo() {
     const car = carData[currentCar];
-    car.totalRepairs = car.repairs.length;
-    car.totalSpent = car.repairs.reduce((sum, repair) => sum + repair.total_price, 0);
+    if (!car) return;
     
-    if (car.repairs.length > 0) {
+    car.totalRepairs = car.repairs ? car.repairs.length : 0;
+    car.totalSpent = car.repairs ? car.repairs.reduce((sum, repair) => sum + (repair.total_price || 0), 0) : 0;
+    
+    if (car.repairs && car.repairs.length > 0) {
         const sortedRepairs = [...car.repairs].sort((a, b) => parseDate(b.date) - parseDate(a.date));
-        car.lastRepair = sortedRepairs[0].date;
+        car.lastRepair = sortedRepairs[0].date || '';
     } else {
         car.lastRepair = '';
     }
@@ -661,6 +847,8 @@ function updateCarInfo() {
 
 function updateCarStatsDisplay() {
     const car = carData[currentCar];
+    if (!car) return;
+    
     document.getElementById('carModel').textContent = car.model || '';
     document.getElementById('carYear').textContent = car.year || '';
     document.getElementById('carColor').textContent = car.color || '';
@@ -676,10 +864,13 @@ function updateRepairsTable() {
     const resultsCount = document.getElementById('resultsCount');
     const currentSearchTerm = document.getElementById('currentSearchTerm');
     
-    let filteredRepairs = [...car.repairs];
+    if (!car || !repairsBody) return;
+    
+    let filteredRepairs = [...(car.repairs || [])];
+    
     if (searchTerm) {
         const term = searchTerm.toLowerCase();
-        filteredRepairs = car.repairs.filter(repair => {
+        filteredRepairs = (car.repairs || []).filter(repair => {
             const shortMatch = repair.short_work && repair.short_work.toLowerCase().includes(term);
             const worksMatch = repair.work_items && repair.work_items.some(item => 
                 item.name && item.name.toLowerCase().includes(term)
@@ -698,11 +889,11 @@ function updateRepairsTable() {
     
     filteredRepairs = sortRepairs(filteredRepairs, currentSort, currentOrder);
     
-    if (searchTerm) {
+    if (searchTerm && searchResultsInfo) {
         searchResultsInfo.classList.remove('hidden');
         resultsCount.textContent = filteredRepairs.length;
         currentSearchTerm.textContent = searchTerm;
-    } else {
+    } else if (searchResultsInfo) {
         searchResultsInfo.classList.add('hidden');
     }
     
@@ -833,9 +1024,7 @@ function updateRepairsTable() {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const repairId = parseInt(this.getAttribute('data-repair-id'));
-                checkAuthBeforeEdit(function() {
-                    openEditForm(repairId);
-                }, repairId);
+                checkAuthBeforeEdit(openEditForm, repairId);
             });
         });
     }, 100);
@@ -1025,7 +1214,7 @@ function renderRepairDetails(repair) {
 
 async function saveRepair() {
     const date = document.getElementById('repairDate').value.trim();
-    const mileage = parseInt(document.getElementById('repairMileage').value);
+    const mileage = parseInt(document.getElementById('repairMileage').value) || 0;
     const shortWork = document.getElementById('repairShortWork').value.trim();
     const sto = document.getElementById('repairSto').value.trim();
     const price = parseInt(document.getElementById('repairPrice').value);
@@ -1122,7 +1311,7 @@ async function saveRepair() {
 async function updateRepair() {
     const repairId = parseInt(document.getElementById('editRepairId').value);
     const date = document.getElementById('editRepairDate').value.trim();
-    const mileage = parseInt(document.getElementById('editRepairMileage').value);
+    const mileage = parseInt(document.getElementById('editRepairMileage').value) || 0;
     const shortWork = document.getElementById('editRepairShortWork').value.trim();
     const sto = document.getElementById('editRepairSto').value.trim();
     const price = parseInt(document.getElementById('editRepairPrice').value);
@@ -1253,10 +1442,14 @@ function closeAllForms() {
     document.getElementById('dataSection').style.display = 'block';
     resetAddForm();
     editingRepairId = null;
+    isEditingAction = false;
 }
 
 function resetAddForm() {
-    document.getElementById('repairDate').value = '';
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('ru-RU').replace(/\//g, '.');
+    
+    document.getElementById('repairDate').value = formattedDate;
     document.getElementById('repairMileage').value = '';
     document.getElementById('repairShortWork').value = '';
     document.getElementById('repairSto').value = '';
@@ -1306,7 +1499,9 @@ function addSampleData() {
             if (samplePeugeotData[carKey].repairs && Array.isArray(samplePeugeotData[carKey].repairs)) {
                 samplePeugeotData[carKey].repairs.forEach(repair => {
                     repair.id = Date.now() + Math.floor(Math.random() * 1000);
-                    carData[carKey].repairs.push(repair);
+                    if (!carData[carKey].repairs.some(r => r.id === repair.id)) {
+                        carData[carKey].repairs.push(repair);
+                    }
                 });
             }
         }
@@ -1435,21 +1630,11 @@ function handleFileUpload(event) {
             const loadedData = JSON.parse(e.target.result);
             
             // Объединяем данные
-            Object.keys(loadedData).forEach(carKey => {
-                if (!carData[carKey]) {
-                    carData[carKey] = loadedData[carKey];
-                } else if (loadedData[carKey].repairs) {
-                    loadedData[carKey].repairs.forEach(newRepair => {
-                        const exists = carData[carKey].repairs.some(r => r.id === newRepair.id);
-                        if (!exists) {
-                            carData[carKey].repairs.push(newRepair);
-                        }
-                    });
-                }
-            });
+            carData = mergeCarData(carData, loadedData);
             
             searchTerm = '';
-            document.getElementById('searchInput').value = '';
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.value = '';
             expandedRepairId = null;
             
             updateCarInfo();
@@ -1481,48 +1666,23 @@ function exportJson() {
 }
 
 async function mergeData() {
-    const jsonInput = document.getElementById('jsonInput').value.trim();
+    const jsonInput = document.getElementById('jsonInput');
+    if (!jsonInput) return;
     
-    if (!jsonInput) {
+    const jsonText = jsonInput.value.trim();
+    
+    if (!jsonText) {
         showStatus('Введите JSON данные для объединения', 'error');
         return;
     }
     
     try {
-        const newData = JSON.parse(jsonInput);
+        const newData = JSON.parse(jsonText);
         
-        Object.keys(newData).forEach(carKey => {
-            if (!carData[carKey]) {
-                carData[carKey] = {
-                    model: "Неизвестно",
-                    year: 0,
-                    color: "",
-                    totalSpent: 0,
-                    totalRepairs: 0,
-                    lastRepair: "",
-                    repairs: []
-                };
-            }
-            
-            if (newData[carKey].repairs && Array.isArray(newData[carKey].repairs)) {
-                newData[carKey].repairs.forEach(newRepair => {
-                    const existingIndex = carData[carKey].repairs.findIndex(r => r.id === newRepair.id);
-                    if (existingIndex !== -1) {
-                        carData[carKey].repairs[existingIndex] = newRepair;
-                    } else {
-                        carData[carKey].repairs.push(newRepair);
-                    }
-                });
-            }
-            
-            Object.keys(newData[carKey]).forEach(key => {
-                if (key !== 'repairs' && !Array.isArray(newData[carKey][key])) {
-                    carData[carKey][key] = newData[carKey][key];
-                }
-            });
-        });
+        // Объединяем данные
+        carData = mergeCarData(carData, newData);
         
-        document.getElementById('jsonInput').value = '';
+        jsonInput.value = '';
         updateCarInfo();
         updateRepairsTable();
         
@@ -1537,6 +1697,8 @@ function toggleStructure() {
     const content = document.getElementById('structureContent');
     const chevron = document.getElementById('structureChevron');
     const container = document.querySelector('.data-example:last-child');
+    
+    if (!content || !chevron || !container) return;
     
     if (content.style.display === 'none' || content.style.display === '') {
         content.style.display = 'block';
@@ -1556,11 +1718,16 @@ function toggleStructure() {
 }
 
 function updateStructureDisplay() {
-    document.getElementById('currentStructure').textContent = JSON.stringify(carData, null, 2);
+    const currentStructure = document.getElementById('currentStructure');
+    if (currentStructure) {
+        currentStructure.textContent = JSON.stringify(carData, null, 2);
+    }
 }
 
 function showStatus(message, type) {
     const statusEl = document.getElementById('statusMessage');
+    if (!statusEl) return;
+    
     statusEl.textContent = message;
     statusEl.className = 'status-message';
     statusEl.classList.add(`status-${type}`);
