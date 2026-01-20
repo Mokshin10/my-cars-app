@@ -61,6 +61,11 @@ let isGuestMode = true;
 let isEditingAction = false;
 let guestDataLoaded = false;
 
+// Логирование тем
+console.log('=== ТЕМЫ ===');
+console.log('Тема из localStorage при запуске:', localStorage.getItem('myCarsTheme'));
+console.log('Класс body при запуске:', document.body.className);
+
 // ==================== АУТЕНТИФИКАЦИЯ ====================
 
 function showAuthModal() {
@@ -78,80 +83,27 @@ function hideAuthModal() {
 }
 
 async function loginUser() {
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    const statusEl = document.getElementById('authStatus');
+    // ... существующий код ...
     
-    // Проверка фиксированных учетных данных
     if (email === 'Mokshin10@gmail.com' && password === 'Vjriby') {
         try {
-            // Пробуем войти
-            const userCredential = await auth.signInWithEmailAndPassword(email, password);
-            currentUser = userCredential.user;
-            isGuestMode = false;
+            // ... существующий код ...
             
-            statusEl.textContent = 'Вход выполнен успешно!';
-            statusEl.className = 'status-message status-success';
+            // После успешного входа проверяем тему пользователя
+            if (userSettings && userSettings.theme) {
+                // Если у пользователя есть сохраненная тема в настройках
+                switchTheme(userSettings.theme, false);
+            } else {
+                // Иначе используем тему из localStorage
+                const savedTheme = localStorage.getItem('myCarsTheme') || 'arch';
+                switchTheme(savedTheme, false);
+            }
             
-            // Загружаем данные пользователя
-            await loadUserData();
-            
-            // Обновляем интерфейс
-            updateUIForAuthState();
-            
-            setTimeout(() => {
-                hideAuthModal();
-                showStatus('Авторизация прошла успешно!', 'success');
-                
-                // Если была попытка редактирования, открываем соответствующую форму
-                if (isEditingAction) {
-                    if (editingRepairId) {
-                        openEditForm(editingRepairId);
-                    } else {
-                        document.getElementById('addRepairForm').classList.add('active');
-                        document.getElementById('editRepairForm').classList.remove('active');
-                        document.getElementById('dataSection').style.display = 'none';
-                        resetAddForm();
-                    }
-                }
-            }, 1000);
+            // ... остальной код ...
             
         } catch (error) {
-            // Если пользователь не найден, создаем его
-            if (error.code === 'auth/user-not-found') {
-                try {
-                    await auth.createUserWithEmailAndPassword(email, password);
-                    // После создания автоматически входим
-                    const userCredential = await auth.signInWithEmailAndPassword(email, password);
-                    currentUser = userCredential.user;
-                    isGuestMode = false;
-                    
-                    statusEl.textContent = 'Пользователь создан и выполнен вход!';
-                    statusEl.className = 'status-message status-success';
-                    
-                    // Создаем начальные данные
-                    await createInitialUserData();
-                    
-                    // Обновляем интерфейс
-                    updateUIForAuthState();
-                    
-                    setTimeout(() => {
-                        hideAuthModal();
-                        showStatus('Добро пожаловать! Создан новый аккаунт.', 'success');
-                    }, 1000);
-                    
-                } catch (createError) {
-                    statusEl.textContent = getErrorMessage(createError);
-                    statusEl.className = 'status-message status-error';
-                }
-            } else {
-                statusEl.textContent = getErrorMessage(error);
-                statusEl.className = 'status-message status-error';
-            }
+            // ... обработка ошибок ...
         }
-    } else {
-        statusEl.textContent = 'Неверный логин или пароль';
-        statusEl.className = 'status-message status-error';
     }
 }
 
@@ -390,46 +342,38 @@ async function loadUserData() {
         
         if (settingsDoc.exists) {
             userSettings = settingsDoc.data();
-            // Восстанавливаем тему из настроек
-            if (userSettings.theme) {
+            
+            // Проверяем приоритет тем:
+            // 1. Сначала пробуем загрузить тему из localStorage (текущая сессия)
+            const localStorageTheme = localStorage.getItem('myCarsTheme');
+            
+            if (localStorageTheme && localStorageTheme !== userSettings.theme) {
+                // Если в localStorage другая тема, чем в настройках пользователя
+                // Обновляем настройки пользователя под текущую тему
+                userSettings.theme = localStorageTheme;
+                await saveUserSettings();
+                switchTheme(localStorageTheme, false);
+            } else if (userSettings.theme) {
+                // Иначе используем тему из настроек пользователя
                 switchTheme(userSettings.theme, false);
             }
+        } else {
+            // Если настроек нет, создаем их с темой из localStorage
+            const savedTheme = localStorage.getItem('myCarsTheme') || 'arch';
+            userSettings = { theme: savedTheme };
+            await saveUserSettings();
+            switchTheme(savedTheme, false);
         }
         
-        // Загружаем данные автомобилей
-        const carsRef = db.collection('userCars').doc(currentUser.uid);
-        const carsDoc = await carsRef.get();
+        // ... остальной код загрузки данных ...
         
-        if (carsDoc.exists) {
-            const data = carsDoc.data();
-            if (data.carData) {
-                carData = data.carData;
-                
-                // Сохраняем локально для оффлайн-работы
-                localStorage.setItem(`myCarsData_${currentUser.uid}`, JSON.stringify(carData));
-                localStorage.setItem(`myCarsDataTimestamp_${currentUser.uid}`, Date.now().toString());
-                
-                return true;
-            }
-        }
-        
-        return false;
     } catch (error) {
         console.error('Ошибка загрузки данных пользователя:', error);
+        // При ошибке используем тему из localStorage
+        const savedTheme = localStorage.getItem('myCarsTheme') || 'arch';
+        switchTheme(savedTheme, false);
         
-        // Пробуем загрузить локальные данные
-        const localData = localStorage.getItem(`myCarsData_${currentUser.uid}`);
-        if (localData) {
-            try {
-                const parsedData = JSON.parse(localData);
-                carData = mergeCarData(carData, parsedData);
-                showStatus('Используются локальные данные', 'warning');
-            } catch (e) {
-                console.error('Ошибка парсинга локальных данных:', e);
-            }
-        }
-        
-        return false;
+        // ... остальной код ...
     }
 }
 
@@ -486,35 +430,78 @@ async function saveCarData() {
 // ==================== УПРАВЛЕНИЕ ТЕМОЙ ====================
 
 function switchTheme(theme, saveToServer = true) {
-    // Удаляем текущие классы темы
+    // Проверяем допустимость темы
+    const validThemes = ['arch', 'rosepine'];
+    if (!validThemes.includes(theme)) {
+        console.warn(`Неизвестная тема: ${theme}, устанавливаю arch`);
+        theme = 'arch';
+    }
+    
+    // Удаляем текущие классы тем
     document.body.classList.remove('theme-arch', 'theme-rosepine');
     
     // Добавляем новый класс темы
     document.body.classList.add(`theme-${theme}`);
     
-    // Обновляем активную кнопку
+    // Обновляем активную кнопку темы
     document.querySelectorAll('.theme-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    document.querySelector(`.theme-btn[data-theme="${theme}"]`).classList.add('active');
+    
+    const themeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`);
+    if (themeBtn) {
+        themeBtn.classList.add('active');
+    } else {
+        // Если кнопка не найдена, активируем Arch
+        document.querySelector('.theme-btn[data-theme="arch"]').classList.add('active');
+    }
     
     // Обновляем текст футера
     const themeName = theme === 'arch' ? 'Arch Linux' : 'Rosé Pine';
-    document.getElementById('themeName').textContent = themeName;
+    const themeNameEl = document.getElementById('themeName');
+    if (themeNameEl) {
+        themeNameEl.textContent = themeName;
+    }
     
-    // Сохраняем тему локально
+    // Всегда сохраняем в localStorage (для гостевого и авторизованного режима)
     localStorage.setItem('myCarsTheme', theme);
+    console.log('Тема сохранена в localStorage:', theme);
     
     // Сохраняем в настройках пользователя если авторизован
     if (!isGuestMode && userSettings && saveToServer) {
         userSettings.theme = theme;
         saveUserSettings();
+        console.log('Тема сохранена в настройках пользователя');
     }
 }
 
 function loadSavedTheme() {
-    const savedTheme = localStorage.getItem('myCarsTheme') || 'arch';
-    switchTheme(savedTheme, false);
+    try {
+        const savedTheme = localStorage.getItem('myCarsTheme');
+        
+        // Допустимые темы
+        const validThemes = ['arch', 'rosepine'];
+        
+        // Определяем тему для загрузки
+        let themeToLoad = 'arch'; // По умолчанию Arch
+        
+        if (savedTheme && validThemes.includes(savedTheme)) {
+            themeToLoad = savedTheme;
+        } else {
+            // Если тема не сохранена или некорректна, сохраняем Arch
+            themeToLoad = 'arch';
+            localStorage.setItem('myCarsTheme', 'arch');
+        }
+        
+        console.log('Загружаем тему из localStorage:', themeToLoad);
+        switchTheme(themeToLoad, false);
+        
+    } catch (error) {
+        console.error('Ошибка загрузки темы:', error);
+        // Устанавливаем тему Arch по умолчанию
+        document.body.classList.add('theme-arch');
+        localStorage.setItem('myCarsTheme', 'arch');
+    }
 }
 
 async function saveUserSettings() {
@@ -533,10 +520,10 @@ async function saveUserSettings() {
 // ==================== ОСНОВНАЯ ЛОГИКА ====================
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Загружаем сохраненную тему
+    // Загружаем сохраненную тему ПЕРВЫМ делом
     loadSavedTheme();
     
-    // Инициализируем приложение в гостевом режиме
+    // Инициализируем приложение
     initApp();
     
     // Отслеживаем состояние аутентификации
@@ -548,7 +535,18 @@ document.addEventListener('DOMContentLoaded', function() {
             // Загружаем данные пользователя
             await loadUserData();
             
-            // Обновляем интерфейс и данные
+            // ОБНОВЛЯЕМ ТЕМУ после загрузки настроек пользователя
+            if (userSettings && userSettings.theme) {
+                // Проверяем, совпадает ли тема с localStorage
+                const localStorageTheme = localStorage.getItem('myCarsTheme');
+                if (localStorageTheme !== userSettings.theme) {
+                    // Если нет, обновляем localStorage
+                    localStorage.setItem('myCarsTheme', userSettings.theme);
+                    switchTheme(userSettings.theme, false);
+                }
+            }
+            
+            // Обновляем интерфейс
             updateUIForAuthState();
             updateCarInfo();
             updateRepairsTable();
@@ -558,10 +556,14 @@ document.addEventListener('DOMContentLoaded', function() {
             currentUser = null;
             isGuestMode = true;
             
-            // Возвращаемся к гостевому режиму
+            // В гостевом режиме используем тему из localStorage
+            const savedTheme = localStorage.getItem('myCarsTheme') || 'arch';
+            switchTheme(savedTheme, false);
+            
+            // Обновляем интерфейс
             updateUIForAuthState();
             
-            // Загружаем гостевые данные если еще не загружены
+            // Загружаем гостевые данные
             if (!guestDataLoaded) {
                 await loadGuestData();
                 updateCarInfo();
@@ -571,18 +573,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Обработчики событий аутентификации
-    document.getElementById('loginBtn').addEventListener('click', loginUser);
-    document.getElementById('cancelAuthBtn').addEventListener('click', hideAuthModal);
-    document.getElementById('loginBtnMain').addEventListener('click', showAuthModal);
-    document.getElementById('logoutBtn').addEventListener('click', logoutUser);
-    
-    // Закрытие модального окна при клике вне его
-    document.getElementById('authModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            hideAuthModal();
-        }
-    });
+    // ... остальные обработчики событий ...
 });
 
 async function initApp() {
@@ -633,101 +624,21 @@ function setupEventListeners() {
     document.querySelectorAll('.theme-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const theme = this.getAttribute('data-theme');
-            switchTheme(theme);
-        });
-    });
-    
-    // Выбор автомобиля
-    document.querySelectorAll('.car-option').forEach(option => {
-        option.addEventListener('click', function() {
-            document.querySelectorAll('.car-option').forEach(opt => {
-                opt.classList.remove('active');
-            });
-            this.classList.add('active');
-            currentCar = this.getAttribute('data-car');
-            updateCarInfo();
-            updateCarStatsDisplay();
-            updateRepairsTable();
-            expandedRepairId = null;
-            closeAllForms();
-        });
-    });
-    
-    // Поиск
-    const searchInput = document.getElementById('searchInput');
-    searchInput.addEventListener('input', function() {
-        performSearch(this.value);
-    });
-    
-    document.getElementById('clearSearchBtn').addEventListener('click', function() {
-        searchInput.value = '';
-        performSearch('');
-    });
-
-    // Сворачивание блока информации об авто
-    const toggleHeader = document.querySelector('.car-info-header');
-    if (toggleHeader) {
-        toggleHeader.addEventListener('click', function() {
-            const carStats = document.getElementById('carStats');
-            const icon = this.querySelector('.fa-chevron-down');
+            console.log('Пользователь выбрал тему:', theme);
             
-            if (carStats.classList.contains('collapsed')) {
-                // Разворачиваем
-                carStats.classList.remove('collapsed');
-                if (icon) icon.style.transform = 'rotate(0deg)';
-                localStorage.setItem('carStatsCollapsed', 'false');
-            } else {
-                // Сворачиваем
-                carStats.classList.add('collapsed');
-                if (icon) icon.style.transform = 'rotate(-90deg)';
-                localStorage.setItem('carStatsCollapsed', 'true');
-            }
-        });
-    }
-    
-    // Кнопки ремонтов с проверкой авторизации
-    document.getElementById('addRepairBtn').addEventListener('click', function() {
-        checkAuthBeforeEdit(function() {
-            document.getElementById('addRepairForm').classList.add('active');
-            document.getElementById('editRepairForm').classList.remove('active');
-            document.getElementById('dataSection').style.display = 'none';
-            resetAddForm();
+            // Сохраняем тему в localStorage сразу
+            localStorage.setItem('myCarsTheme', theme);
+            
+            // Применяем тему
+            switchTheme(theme);
+            
+            // Показываем статус
+            const themeName = theme === 'arch' ? 'Arch Linux' : 'Rosé Pine';
+            showStatus(`Тема изменена на ${themeName}`, 'success');
         });
     });
     
-    document.getElementById('saveRepairBtn').addEventListener('click', saveRepair);
-    document.getElementById('cancelRepairBtn').addEventListener('click', closeAllForms);
-    document.getElementById('updateRepairBtn').addEventListener('click', updateRepair);
-    document.getElementById('cancelEditBtn').addEventListener('click', closeAllForms);
-    document.getElementById('deleteRepairBtn').addEventListener('click', deleteRepair);
-    
-    // Файловые операции
-    document.getElementById('saveToFileBtn').addEventListener('click', saveToFile);
-    document.getElementById('loadFromFileBtn').addEventListener('click', function() {
-        checkAuthBeforeEdit(function() {
-            document.getElementById('fileInput').click();
-        });
-    });
-    document.getElementById('exportJsonBtn').addEventListener('click', exportJson);
-    document.getElementById('addSampleDataBtn').addEventListener('click', function() {
-        checkAuthBeforeEdit(addSampleData);
-    });
-    document.getElementById('mergeDataBtn').addEventListener('click', function() {
-        checkAuthBeforeEdit(mergeData);
-    });
-    
-    document.getElementById('fileInput').addEventListener('change', handleFileUpload);
-    
-    // Сортировка таблицы
-    document.querySelectorAll('.repairs-table th[data-sort]').forEach(th => {
-        th.addEventListener('click', function() {
-            const sortField = this.getAttribute('data-sort');
-            sortTable(sortField);
-        });
-    });
-    
-    // Структура данных
-    document.getElementById('toggleStructureBtn').addEventListener('click', toggleStructure);
+    // ... остальные обработчики ...
 }
 
 // ==================== ФУНКЦИИ РЕМОНТОВ ====================
