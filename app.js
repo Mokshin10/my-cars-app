@@ -59,6 +59,7 @@ let expandedRepairId = null;
 let editingRepairId = null;
 let isGuestMode = true;
 let isEditingAction = false;
+let guestDataLoaded = false;
 
 // ==================== АУТЕНТИФИКАЦИЯ ====================
 
@@ -66,8 +67,8 @@ function showAuthModal() {
     const modal = document.getElementById('authModal');
     modal.style.display = 'block';
     document.getElementById('authStatus').textContent = '';
-    document.getElementById('loginEmail').value = 'admin@autos.ru';
-    document.getElementById('loginPassword').value = 'admin123';
+    document.getElementById('loginEmail').value = 'Mokshin10@gmail.com';
+    document.getElementById('loginPassword').value = 'Vjriby';
 }
 
 function hideAuthModal() {
@@ -81,37 +82,98 @@ async function loginUser() {
     const password = document.getElementById('loginPassword').value;
     const statusEl = document.getElementById('authStatus');
     
-    try {
-        const userCredential = await auth.signInWithEmailAndPassword(email, password);
-        currentUser = userCredential.user;
-        isGuestMode = false;
-        
-        statusEl.textContent = 'Вход выполнен успешно!';
-        statusEl.className = 'status-message status-success';
-        
-        // Обновляем интерфейс
-        updateUIForAuthState();
-        
-        setTimeout(() => {
-            hideAuthModal();
-            showStatus('Авторизация прошла успешно!', 'success');
+    // Проверка фиксированных учетных данных
+    if (email === 'Mokshin10@gmail.com' && password === 'Vjriby') {
+        try {
+            // Пробуем войти
+            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            currentUser = userCredential.user;
+            isGuestMode = false;
             
-            // Если была попытка редактирования, открываем соответствующую форму
-            if (isEditingAction) {
-                if (editingRepairId) {
-                    openEditForm(editingRepairId);
-                } else {
-                    document.getElementById('addRepairForm').classList.add('active');
-                    document.getElementById('editRepairForm').classList.remove('active');
-                    document.getElementById('dataSection').style.display = 'none';
-                    resetAddForm();
+            statusEl.textContent = 'Вход выполнен успешно!';
+            statusEl.className = 'status-message status-success';
+            
+            // Загружаем данные пользователя
+            await loadUserData();
+            
+            // Обновляем интерфейс
+            updateUIForAuthState();
+            
+            setTimeout(() => {
+                hideAuthModal();
+                showStatus('Авторизация прошла успешно!', 'success');
+                
+                // Если была попытка редактирования, открываем соответствующую форму
+                if (isEditingAction) {
+                    if (editingRepairId) {
+                        openEditForm(editingRepairId);
+                    } else {
+                        document.getElementById('addRepairForm').classList.add('active');
+                        document.getElementById('editRepairForm').classList.remove('active');
+                        document.getElementById('dataSection').style.display = 'none';
+                        resetAddForm();
+                    }
                 }
+            }, 1000);
+            
+        } catch (error) {
+            // Если пользователь не найден, создаем его
+            if (error.code === 'auth/user-not-found') {
+                try {
+                    await auth.createUserWithEmailAndPassword(email, password);
+                    // После создания автоматически входим
+                    const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                    currentUser = userCredential.user;
+                    isGuestMode = false;
+                    
+                    statusEl.textContent = 'Пользователь создан и выполнен вход!';
+                    statusEl.className = 'status-message status-success';
+                    
+                    // Создаем начальные данные
+                    await createInitialUserData();
+                    
+                    // Обновляем интерфейс
+                    updateUIForAuthState();
+                    
+                    setTimeout(() => {
+                        hideAuthModal();
+                        showStatus('Добро пожаловать! Создан новый аккаунт.', 'success');
+                    }, 1000);
+                    
+                } catch (createError) {
+                    statusEl.textContent = getErrorMessage(createError);
+                    statusEl.className = 'status-message status-error';
+                }
+            } else {
+                statusEl.textContent = getErrorMessage(error);
+                statusEl.className = 'status-message status-error';
             }
-        }, 1000);
-        
-    } catch (error) {
-        statusEl.textContent = getErrorMessage(error);
+        }
+    } else {
+        statusEl.textContent = 'Неверный логин или пароль';
         statusEl.className = 'status-message status-error';
+    }
+}
+
+async function createInitialUserData() {
+    try {
+        await db.collection('userCars').doc(currentUser.uid).set({
+            email: currentUser.email,
+            carData: carData,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        await db.collection('userSettings').doc(currentUser.uid).set({
+            theme: 'arch',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        return true;
+    } catch (error) {
+        console.error('Ошибка создания начальных данных:', error);
+        return false;
     }
 }
 
@@ -141,8 +203,8 @@ function updateUIForAuthState() {
         loginBtn.style.display = 'flex';
         modeIndicator.classList.remove('mode-authorized');
         modeIndicator.classList.add('mode-guest');
-        modeText.textContent = 'Гостевой режим';
-        userInfo.textContent = 'Гостевой доступ';
+        modeText.textContent = 'Гостевой режим (только просмотр)';
+        userInfo.textContent = 'Гостевой доступ к данным';
     } else {
         logoutBtn.style.display = 'flex';
         loginBtn.style.display = 'none';
@@ -174,38 +236,146 @@ function getErrorMessage(error) {
     }
 }
 
-// ==================== ОСНОВНЫЕ ФУНКЦИИ ====================
+// ==================== ЗАГРУЗКА ДАННЫХ ====================
 
-async function loadCarData() {
+async function loadGuestData() {
     try {
-        // Пробуем загрузить из localStorage
-        const savedData = localStorage.getItem('myCarsData');
-        if (savedData) {
-            try {
-                const parsedData = JSON.parse(savedData);
-                carData = mergeCarData(carData, parsedData);
-            } catch (e) {
-                console.error('Ошибка парсинга сохраненных данных:', e);
+        if (guestDataLoaded) return true;
+        
+        // Пробуем загрузить данные из публичной коллекции
+        const publicDataRef = db.collection('publicData').doc('guestAccess');
+        const publicDataDoc = await publicDataRef.get();
+        
+        if (publicDataDoc.exists) {
+            const data = publicDataDoc.data();
+            if (data.carData) {
+                carData = mergeCarData(carData, data.carData);
+                guestDataLoaded = true;
+                showStatus('Данные успешно загружены', 'success');
+                return true;
             }
         }
         
-        // Если пользователь авторизован, загружаем из Firebase
-        if (!isGuestMode && currentUser) {
-            const carsRef = db.collection('userCars').doc(currentUser.uid);
-            const carsDoc = await carsRef.get();
+        // Если публичных данных нет, пробуем загрузить из аккаунта по умолчанию
+        try {
+            // Создаем временную аутентификацию для загрузки гостевых данных
+            await auth.signInWithEmailAndPassword('Mokshin10@gmail.com', 'Vjriby');
+            const tempUser = auth.currentUser;
             
-            if (carsDoc.exists) {
-                const data = carsDoc.data();
-                if (data.carData) {
-                    carData = mergeCarData(data.carData, carData);
+            if (tempUser) {
+                const userCarsRef = db.collection('userCars').doc(tempUser.uid);
+                const userCarsDoc = await userCarsRef.get();
+                
+                if (userCarsDoc.exists) {
+                    const data = userCarsDoc.data();
+                    if (data.carData) {
+                        carData = mergeCarData(carData, data.carData);
+                        guestDataLoaded = true;
+                        
+                        // Сохраняем данные локально для офлайн-работы
+                        localStorage.setItem('myCarsGuestData', JSON.stringify(carData));
+                        localStorage.setItem('myCarsGuestDataTimestamp', Date.now().toString());
+                        
+                        showStatus('Данные успешно загружены', 'success');
+                    }
+                }
+                
+                // Выходим из временного аккаунта
+                await auth.signOut();
+            }
+        } catch (guestAuthError) {
+            console.log('Не удалось загрузить гостевые данные:', guestAuthError);
+        }
+        
+        // Пробуем загрузить локальные данные
+        const localData = localStorage.getItem('myCarsGuestData');
+        const localTimestamp = localStorage.getItem('myCarsGuestDataTimestamp');
+        
+        if (localData && localTimestamp) {
+            // Проверяем, не устарели ли локальные данные (больше 1 дня)
+            const timestamp = parseInt(localTimestamp);
+            const oneDay = 24 * 60 * 60 * 1000;
+            
+            if (Date.now() - timestamp < oneDay) {
+                try {
+                    const parsedData = JSON.parse(localData);
+                    carData = mergeCarData(carData, parsedData);
+                    showStatus('Используются локальные данные', 'warning');
+                } catch (e) {
+                    console.error('Ошибка парсинга локальных данных:', e);
                 }
             }
         }
         
         return true;
     } catch (error) {
-        console.error('Ошибка загрузки данных:', error);
+        console.error('Ошибка загрузки гостевых данных:', error);
         showStatus('Ошибка загрузки данных. Используются локальные данные.', 'warning');
+        
+        // Пробуем загрузить локальные данные как запасной вариант
+        const localData = localStorage.getItem('myCarsGuestData');
+        if (localData) {
+            try {
+                const parsedData = JSON.parse(localData);
+                carData = mergeCarData(carData, parsedData);
+            } catch (e) {
+                console.error('Ошибка парсинга локальных данных:', e);
+            }
+        }
+        
+        return false;
+    }
+}
+
+async function loadUserData() {
+    try {
+        if (!currentUser) return false;
+        
+        // Загружаем настройки пользователя
+        const settingsRef = db.collection('userSettings').doc(currentUser.uid);
+        const settingsDoc = await settingsRef.get();
+        
+        if (settingsDoc.exists) {
+            userSettings = settingsDoc.data();
+            // Восстанавливаем тему из настроек
+            if (userSettings.theme) {
+                switchTheme(userSettings.theme, false);
+            }
+        }
+        
+        // Загружаем данные автомобилей
+        const carsRef = db.collection('userCars').doc(currentUser.uid);
+        const carsDoc = await carsRef.get();
+        
+        if (carsDoc.exists) {
+            const data = carsDoc.data();
+            if (data.carData) {
+                carData = data.carData;
+                
+                // Сохраняем локально для оффлайн-работы
+                localStorage.setItem(`myCarsData_${currentUser.uid}`, JSON.stringify(carData));
+                localStorage.setItem(`myCarsDataTimestamp_${currentUser.uid}`, Date.now().toString());
+                
+                return true;
+            }
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('Ошибка загрузки данных пользователя:', error);
+        
+        // Пробуем загрузить локальные данные
+        const localData = localStorage.getItem(`myCarsData_${currentUser.uid}`);
+        if (localData) {
+            try {
+                const parsedData = JSON.parse(localData);
+                carData = mergeCarData(carData, parsedData);
+                showStatus('Используются локальные данные', 'warning');
+            } catch (e) {
+                console.error('Ошибка парсинга локальных данных:', e);
+            }
+        }
+        
         return false;
     }
 }
@@ -232,22 +402,30 @@ function mergeCarData(primaryData, secondaryData) {
 
 async function saveCarData() {
     try {
-        // Сохраняем локально
-        localStorage.setItem('myCarsData', JSON.stringify(carData));
-        
-        // Если пользователь авторизован, сохраняем в Firebase
-        if (!isGuestMode && currentUser) {
-            await db.collection('userCars').doc(currentUser.uid).set({
-                email: currentUser.email,
-                carData: carData,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+        if (isGuestMode) {
+            // В гостевом режиме сохраняем только локально
+            localStorage.setItem('myCarsGuestData', JSON.stringify(carData));
+            localStorage.setItem('myCarsGuestDataTimestamp', Date.now().toString());
+            return false;
         }
+        
+        if (!currentUser) return false;
+        
+        // Сохраняем локально для оффлайн-работы
+        localStorage.setItem(`myCarsData_${currentUser.uid}`, JSON.stringify(carData));
+        localStorage.setItem(`myCarsDataTimestamp_${currentUser.uid}`, Date.now().toString());
+        
+        // Сохраняем в Firebase
+        await db.collection('userCars').doc(currentUser.uid).set({
+            email: currentUser.email,
+            carData: carData,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
         
         return true;
     } catch (error) {
         console.error('Ошибка сохранения данных:', error);
-        showStatus('Данные сохранены локально.', 'warning');
+        showStatus('Ошибка сохранения. Данные сохранены локально.', 'warning');
         return false;
     }
 }
@@ -273,11 +451,30 @@ function switchTheme(theme, saveToServer = true) {
     
     // Сохраняем тему локально
     localStorage.setItem('myCarsTheme', theme);
+    
+    // Сохраняем в настройках пользователя если авторизован
+    if (!isGuestMode && userSettings && saveToServer) {
+        userSettings.theme = theme;
+        saveUserSettings();
+    }
 }
 
 function loadSavedTheme() {
     const savedTheme = localStorage.getItem('myCarsTheme') || 'arch';
     switchTheme(savedTheme, false);
+}
+
+async function saveUserSettings() {
+    try {
+        if (!currentUser || !userSettings) return;
+        
+        await db.collection('userSettings').doc(currentUser.uid).set({
+            ...userSettings,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    } catch (error) {
+        console.error('Ошибка сохранения настроек:', error);
+    }
 }
 
 // ==================== ОСНОВНАЯ ЛОГИКА ====================
@@ -290,15 +487,35 @@ document.addEventListener('DOMContentLoaded', function() {
     initApp();
     
     // Отслеживаем состояние аутентификации
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async user => {
         if (user) {
             currentUser = user;
             isGuestMode = false;
+            
+            // Загружаем данные пользователя
+            await loadUserData();
+            
+            // Обновляем интерфейс и данные
+            updateUIForAuthState();
+            updateCarInfo();
+            updateRepairsTable();
+            updateCarStatsDisplay();
+            
         } else {
             currentUser = null;
             isGuestMode = true;
+            
+            // Возвращаемся к гостевому режиму
+            updateUIForAuthState();
+            
+            // Загружаем гостевые данные если еще не загружены
+            if (!guestDataLoaded) {
+                await loadGuestData();
+                updateCarInfo();
+                updateRepairsTable();
+                updateCarStatsDisplay();
+            }
         }
-        updateUIForAuthState();
     });
     
     // Обработчики событий аутентификации
@@ -315,14 +532,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-function initApp() {
-    loadCarData().then(() => {
-        updateCarInfo();
-        updateRepairsTable();
-        updateCarStatsDisplay();
-        setSortIndicator('date', 'desc');
-        setupEventListeners();
-    });
+async function initApp() {
+    // Загружаем гостевые данные
+    await loadGuestData();
+    
+    updateCarInfo();
+    updateRepairsTable();
+    updateCarStatsDisplay();
+    setSortIndicator('date', 'desc');
+    setupEventListeners();
     
     // Восстанавливаем состояние свернутого блока
     const carStatsCollapsed = localStorage.getItem('carStatsCollapsed') === 'true';
