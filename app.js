@@ -238,11 +238,9 @@ function getErrorMessage(error) {
 
 // ==================== ЗАГРУЗКА ДАННЫХ ====================
 
-async function loadGuestData() {
+async function loadInitialGuestData() {
     try {
-        if (guestDataLoaded) return true;
-        
-        // Пробуем загрузить данные из публичной коллекции
+        // Сначала пробуем загрузить данные из публичной коллекции
         const publicDataRef = db.collection('publicData').doc('guestAccess');
         const publicDataDoc = await publicDataRef.get();
         
@@ -251,14 +249,54 @@ async function loadGuestData() {
             if (data.carData) {
                 carData = mergeCarData(carData, data.carData);
                 guestDataLoaded = true;
-                showStatus('Данные успешно загружены', 'success');
                 return true;
             }
         }
         
-        // Если публичных данных нет, пробуем загрузить из аккаунта по умолчанию
+        // Если нет публичных данных, используем локальные данные
+        const localData = localStorage.getItem('myCarsGuestData');
+        if (localData) {
+            try {
+                const parsedData = JSON.parse(localData);
+                carData = mergeCarData(carData, parsedData);
+                guestDataLoaded = true;
+                return true;
+            } catch (e) {
+                console.error('Ошибка парсинга локальных данных:', e);
+            }
+        }
+        
+        // Если совсем нет данных, используем встроенные примеры
+        if (!guestDataLoaded) {
+            // Добавляем пример данных для Пежо
+            if (samplePeugeotData.peugeot && samplePeugeotData.peugeot.repairs) {
+                samplePeugeotData.peugeot.repairs.forEach(repair => {
+                    repair.id = Date.now() + Math.floor(Math.random() * 1000);
+                    if (!carData.peugeot.repairs.some(r => r.short_work === repair.short_work)) {
+                        carData.peugeot.repairs.push(repair);
+                    }
+                });
+                guestDataLoaded = true;
+            }
+        }
+        
+        return guestDataLoaded;
+    } catch (error) {
+        console.error('Ошибка загрузки гостевых данных:', error);
+        return false;
+    }
+}
+
+async function loadGuestData() {
+    try {
+        if (guestDataLoaded) return true;
+        
+        // Загружаем начальные данные
+        await loadInitialGuestData();
+        
+        // Затем пробуем загрузить из аккаунта по умолчанию
         try {
-            // Создаем временную аутентификацию для загрузки гостевых данных
+            // Создаем временную аутентификацию
             await auth.signInWithEmailAndPassword('Mokshin10@gmail.com', 'Vjriby');
             const tempUser = auth.currentUser;
             
@@ -272,7 +310,7 @@ async function loadGuestData() {
                         carData = mergeCarData(carData, data.carData);
                         guestDataLoaded = true;
                         
-                        // Сохраняем данные локально для офлайн-работы
+                        // Сохраняем локально
                         localStorage.setItem('myCarsGuestData', JSON.stringify(carData));
                         localStorage.setItem('myCarsGuestDataTimestamp', Date.now().toString());
                         
@@ -287,43 +325,58 @@ async function loadGuestData() {
             console.log('Не удалось загрузить гостевые данные:', guestAuthError);
         }
         
-        // Пробуем загрузить локальные данные
-        const localData = localStorage.getItem('myCarsGuestData');
-        const localTimestamp = localStorage.getItem('myCarsGuestDataTimestamp');
-        
-        if (localData && localTimestamp) {
-            // Проверяем, не устарели ли локальные данные (больше 1 дня)
-            const timestamp = parseInt(localTimestamp);
-            const oneDay = 24 * 60 * 60 * 1000;
+        // Если все еще нет данных, создаем базовые примеры
+        if (!guestDataLoaded || carData.focus.repairs.length === 0) {
+            // Добавляем пример ремонта для Ford Focus
+            const sampleFocusRepair = {
+                id: Date.now() + 1,
+                date: "17.01.2026",
+                mileage: 203418,
+                short_work: "Замена рулевых наконечников и шаровых опор",
+                total_price: 10359,
+                sto: "CLINLIGARAGE",
+                work_items: [
+                    { name: "Замена стойки стабилизатора перед", price: 1800 },
+                    { name: "Замена шаровой опоры без снятия рычага", price: 1800 },
+                    { name: "Замена рулевого наконечника лев", price: 855 }
+                ],
+                part_items: [
+                    { name: "Наконечник рулевой тяги CTR CE0077L", manufacturer: "CTR", article: "CE0077L", quantity: 1, price: 1980 },
+                    { name: "Опора подвески шаровая SIDEM 3881", manufacturer: "SIDEM", article: "3881", quantity: 1, price: 1647 },
+                    { name: "Опора подвески шаровая SIDEM 3880", manufacturer: "SIDEM", article: "3880", quantity: 1, price: 1647 },
+                    { name: "Тяга стабилизатора TRW JTS536", manufacturer: "TRW", article: "JTS536", quantity: 2, price: 912 }
+                ],
+                notes: "Замена рулевых наконечников и шаровых опор"
+            };
             
-            if (Date.now() - timestamp < oneDay) {
-                try {
-                    const parsedData = JSON.parse(localData);
-                    carData = mergeCarData(carData, parsedData);
-                    showStatus('Используются локальные данные', 'warning');
-                } catch (e) {
-                    console.error('Ошибка парсинга локальных данных:', e);
-                }
-            }
+            carData.focus.repairs.push(sampleFocusRepair);
+            guestDataLoaded = true;
+            
+            // Сохраняем локально
+            localStorage.setItem('myCarsGuestData', JSON.stringify(carData));
+            localStorage.setItem('myCarsGuestDataTimestamp', Date.now().toString());
+            
+            showStatus('Загружены демо-данные', 'info');
         }
         
         return true;
     } catch (error) {
         console.error('Ошибка загрузки гостевых данных:', error);
-        showStatus('Ошибка загрузки данных. Используются локальные данные.', 'warning');
         
-        // Пробуем загрузить локальные данные как запасной вариант
+        // Используем локальные данные как запасной вариант
         const localData = localStorage.getItem('myCarsGuestData');
         if (localData) {
             try {
                 const parsedData = JSON.parse(localData);
                 carData = mergeCarData(carData, parsedData);
+                guestDataLoaded = true;
+                showStatus('Используются локальные данные', 'warning');
             } catch (e) {
                 console.error('Ошибка парсинга локальных данных:', e);
             }
         }
         
-        return false;
+        return guestDataLoaded;
     }
 }
 
@@ -535,6 +588,22 @@ document.addEventListener('DOMContentLoaded', function() {
 async function initApp() {
     // Загружаем гостевые данные
     await loadGuestData();
+    
+    // Если все еще нет данных, показываем сообщение
+    if (!guestDataLoaded || carData[currentCar].repairs.length === 0) {
+        // Создаем минимальный пример
+        carData.focus.repairs.push({
+            id: Date.now(),
+            date: "17.01.2026",
+            mileage: 203418,
+            short_work: "Пример ремонта",
+            total_price: 10359,
+            sto: "CLINLIGARAGE",
+            work_items: [{ name: "Замена запчастей", price: 4455 }],
+            part_items: [{ name: "Пример запчасти", price: 5904 }],
+            notes: "Это демо-данные. Войдите в систему для загрузки реальных данных."
+        });
+    }
     
     updateCarInfo();
     updateRepairsTable();
