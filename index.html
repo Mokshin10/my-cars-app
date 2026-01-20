@@ -1,0 +1,2706 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои Авто - Архив ремонтов</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    
+    <style>
+        /* Базовые стили и переменные тем */
+        :root {
+            --current-theme: 'arch';
+            --font-primary: 'Segoe UI', 'Noto Sans', system-ui, sans-serif;
+        }
+        
+        /* Тема Arch Linux (текущая) */
+        .theme-arch {
+            --bg: #0c0d11;
+            --surface: #1a1b26;
+            --primary: #7aa2f7;
+            --secondary: #bb9af7;
+            --text: #a9b1d6;
+            --text-light: #c0caf5;
+            --border: #292e42;
+            --success: #9ece6a;
+            --warning: #e0af68;
+            --error: #f7768e;
+            --accent: #7aa2f7;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Тема Rosé Pine */
+        .theme-rosepine {
+            --bg: #191724;
+            --surface: #1f1d2e;
+            --primary: #eb6f92;
+            --secondary: #9ccfd8;
+            --text: #e0def4;
+            --text-light: #f6c177;
+            --border: #393552;
+            --success: #31748f;
+            --warning: #f6c177;
+            --error: #eb6f92;
+            --accent: #c4a7e7;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: var(--font-primary);
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 15px;
+            max-width: 1200px;
+            margin: 0 auto;
+            min-height: 100vh;
+            transition: all 0.3s ease;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+        
+        /* Панель выбора темы */
+        .theme-selector {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            background-color: var(--surface);
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        
+        @media (max-width: 768px) {
+            .theme-selector {
+                position: relative;
+                top: 0;
+                right: 0;
+                align-self: flex-end;
+                margin-bottom: 10px;
+            }
+        }
+        
+        .theme-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .theme-btn:hover {
+            transform: scale(1.1);
+            border-color: var(--primary);
+        }
+        
+        .theme-btn.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+        }
+        
+        .theme-btn.arch {
+            background: linear-gradient(135deg, #0c0d11 0%, #1a1b26 100%);
+            color: #7aa2f7;
+        }
+        
+        .theme-btn.rosepine {
+            background: linear-gradient(135deg, #191724 0%, #1f1d2e 100%);
+            color: #eb6f92;
+        }
+        
+        /* Шапка приложения */
+        .header {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        
+        @media (min-width: 769px) {
+            .header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        
+        .logo-icon {
+            color: var(--primary);
+            font-size: 24px;
+        }
+        
+        .logo-text {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+        
+        .logo-subtext {
+            font-size: 13px;
+            color: var(--text);
+        }
+        
+        /* Выбор автомобиля */
+        .car-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+        }
+        
+        @media (min-width: 769px) {
+            .car-selector {
+                justify-content: flex-end;
+                width: auto;
+            }
+        }
+        
+        .car-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background-color: var(--surface);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 140px;
+            flex: 1;
+            max-width: 180px;
+        }
+        
+        @media (max-width: 480px) {
+            .car-option {
+                min-width: 120px;
+                padding: 10px;
+            }
+        }
+        
+        .car-option:hover {
+            border-color: var(--primary);
+            transform: translateY(-3px);
+            box-shadow: var(--shadow);
+        }
+        
+        .car-option.active {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(122, 162, 247, 0.3);
+        }
+        
+        .theme-rosepine .car-option.active {
+            box-shadow: 0 0 15px rgba(235, 111, 146, 0.3);
+        }
+        
+        .car-image {
+            width: 100%;
+            height: 70px;
+            object-fit: contain;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+        
+        .car-name {
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 4px;
+            text-align: center;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+        
+        .car-details {
+            font-size: 12px;
+            color: var(--text);
+            text-align: center;
+        }
+        
+        /* Поисковая строка */
+        .search-container {
+            display: flex;
+            margin: 10px 0 15px;
+            position: relative;
+            width: 100%;
+        }
+        
+        .search-input {
+            flex-grow: 1;
+            padding: 12px 16px;
+            background-color: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-light);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+            padding-right: 45px;
+            width: 100%;
+            min-width: 0;
+        }
+        
+        .search-input:focus {
+            border-color: var(--primary);
+        }
+        
+        .search-icon {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary);
+            pointer-events: none;
+        }
+        
+        /* Основное содержимое */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+        
+        @media (min-width: 769px) {
+            .main-content {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 25px;
+            }
+        }
+        
+        .car-info {
+            background-color: var(--surface);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--border);
+            width: 100%;
+        }
+        
+        .section-title {
+            color: var(--text-light);
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .car-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        
+        @media (max-width: 480px) {
+            .car-stats {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        .stat-item {
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+            min-width: 0;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        
+        .stat-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-light);
+            word-break: break-word;
+        }
+        
+        /* Таблица ремонтов */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .repairs-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            min-width: 600px;
+        }
+        
+        .repairs-table th {
+            background-color: rgba(0, 0, 0, 0.3);
+            color: var(--text-light);
+            text-align: left;
+            padding: 12px 10px;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border);
+            cursor: pointer;
+            transition: background-color 0.3s;
+            position: relative;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+        
+        .repairs-table th:hover {
+            background-color: rgba(122, 162, 247, 0.1);
+        }
+        
+        .theme-rosepine .repairs-table th:hover {
+            background-color: rgba(235, 111, 146, 0.1);
+        }
+        
+        .repairs-table th i {
+            margin-left: 6px;
+            color: var(--primary);
+            font-size: 11px;
+            opacity: 0.7;
+        }
+        
+        .repairs-table th.sorted-asc i.fa-sort-up,
+        .repairs-table th.sorted-desc i.fa-sort-down {
+            opacity: 1;
+        }
+        
+        .repairs-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        .repairs-table tr {
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .repairs-table tr:hover {
+            background-color: rgba(122, 162, 247, 0.05);
+        }
+        
+        .theme-rosepine .repairs-table tr:hover {
+            background-color: rgba(235, 111, 146, 0.05);
+        }
+        
+        .repairs-table tr.expanded {
+            background-color: rgba(122, 162, 247, 0.1);
+        }
+        
+        .theme-rosepine .repairs-table tr.expanded {
+            background-color: rgba(235, 111, 146, 0.1);
+        }
+        
+        .repair-part {
+            color: var(--text-light);
+            font-weight: 500;
+            font-size: 13px;
+        }
+        
+        .repair-price {
+            color: var(--success);
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .repair-sto {
+            font-size: 12px;
+            color: var(--warning);
+        }
+        
+        /* Детализация ремонта */
+        .repair-details {
+            display: none;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid var(--border);
+        }
+        
+        .repair-details.active {
+            display: block;
+        }
+        
+        .details-section {
+            margin-bottom: 15px;
+        }
+        
+        .details-title {
+            color: var(--text-light);
+            font-size: 14px;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        
+        .details-table th {
+            background-color: rgba(0, 0, 0, 0.3);
+            color: var(--text-light);
+            text-align: left;
+            padding: 8px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        
+        .details-table td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .details-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .part-price, .work-price {
+            color: var(--success);
+            font-weight: 600;
+        }
+        
+        .details-total {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 12px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid var(--border);
+        }
+        
+        @media (min-width: 480px) {
+            .details-total {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+        
+        .total-label {
+            color: var(--text-light);
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .total-value {
+            color: var(--success);
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .repair-notes {
+            background-color: rgba(224, 175, 104, 0.1);
+            border: 1px solid var(--warning);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--warning);
+        }
+        
+        /* Кнопки действий в детализации */
+        .repair-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+            justify-content: flex-end;
+        }
+        
+        /* Формы */
+        .add-repair-form, .edit-repair-form {
+            background-color: var(--surface);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--border);
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .add-repair-form.active, .edit-repair-form.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--text-light);
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-light);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: var(--font-primary);
+            font-size: 13px;
+        }
+        
+        .form-input:focus, .form-textarea:focus {
+            border-color: var(--primary);
+        }
+        
+        .btn {
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 13px;
+            min-height: 40px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--bg);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary);
+        }
+        
+        .btn-secondary {
+            background-color: var(--surface);
+            color: var(--text-light);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            border-color: var(--primary);
+        }
+        
+        .btn-success {
+            background-color: var(--success);
+            color: var(--bg);
+        }
+        
+        .btn-success:hover {
+            background-color: #8ab85f;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning);
+            color: var(--bg);
+        }
+        
+        .btn-warning:hover {
+            background-color: #d19a57;
+        }
+        
+        .btn-danger {
+            background-color: var(--error);
+            color: var(--bg);
+        }
+        
+        .btn-danger:hover {
+            background-color: #e6677e;
+        }
+        
+        /* Кнопки файлов */
+        .file-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        @media (min-width: 480px) {
+            .file-actions {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+        }
+        
+        /* Пример структуры данных */
+        .data-example {
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        .data-example code {
+            color: var(--success);
+            font-size: 12px;
+            line-height: 1.4;
+            word-break: break-all;
+        }
+        
+        .data-example-title {
+            color: var(--warning);
+            margin-bottom: 8px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        /* Индикатор загрузки/сохранения */
+        .status-message {
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+            text-align: center;
+            font-size: 13px;
+        }
+        
+        .status-success {
+            background-color: rgba(158, 206, 106, 0.2);
+            border: 1px solid var(--success);
+            color: var(--success);
+            display: block;
+        }
+        
+        .theme-rosepine .status-success {
+            background-color: rgba(49, 116, 143, 0.2);
+        }
+        
+        .status-error {
+            background-color: rgba(247, 118, 142, 0.2);
+            border: 1px solid var(--error);
+            color: var(--error);
+            display: block;
+        }
+        
+        .theme-rosepine .status-error {
+            background-color: rgba(235, 111, 146, 0.2);
+        }
+        
+        /* Анимация для сворачивания/разворачивания */
+        .structure-collapsed .fa-chevron-down {
+            transform: rotate(-90deg);
+            transition: transform 0.3s ease;
+        }
+
+        .structure-expanded .fa-chevron-down {
+            transform: rotate(0deg);
+            transition: transform 0.3s ease;
+        }
+
+        #structureContent {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        #structureContent.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 500px;
+            }
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .logo-text {
+                font-size: 18px;
+            }
+            
+            .logo-subtext {
+                font-size: 12px;
+            }
+            
+            .car-option {
+                min-width: calc(50% - 10px);
+                max-width: calc(50% - 10px);
+            }
+            
+            .section-title {
+                font-size: 15px;
+            }
+            
+            .car-stats {
+                gap: 8px;
+            }
+            
+            .stat-item {
+                padding: 8px;
+            }
+            
+            .stat-label {
+                font-size: 11px;
+            }
+            
+            .stat-value {
+                font-size: 14px;
+            }
+            
+            .form-input, .form-textarea {
+                font-size: 13px;
+                padding: 8px 12px;
+            }
+            
+            .btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+        }
+        
+        /* Сообщение о пустом результате поиска */
+        .no-results {
+            text-align: center;
+            padding: 20px;
+            color: var(--text);
+            font-style: italic;
+            grid-column: 1 / -1;
+            font-size: 13px;
+        }
+        
+        .highlight {
+            background-color: rgba(122, 162, 247, 0.2);
+            color: var(--text-light);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        
+        .theme-rosepine .highlight {
+            background-color: rgba(235, 111, 146, 0.2);
+        }
+        
+        /* Индикатор результатов поиска */
+        .search-results-info {
+            background-color: rgba(122, 162, 247, 0.1);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        @media (min-width: 480px) {
+            .search-results-info {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+        
+        .theme-rosepine .search-results-info {
+            background-color: rgba(235, 111, 146, 0.1);
+        }
+        
+        .clear-search {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        
+        .clear-search:hover {
+            border-color: var(--error);
+            color: var(--error);
+        }
+        
+        /* Футер */
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text);
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Утилиты */
+        .text-center {
+            text-align: center;
+        }
+        
+        .mt-20 {
+            margin-top: 20px;
+        }
+        
+        /* Стили для таблицы на мобильных */
+        @media (max-width: 768px) {
+            .repairs-table {
+                font-size: 12px;
+            }
+            
+            .repairs-table th,
+            .repairs-table td {
+                padding: 8px 6px;
+            }
+            
+            .repair-part,
+            .repair-price,
+            .repair-sto {
+                font-size: 12px;
+            }
+            
+            .details-table th,
+            .details-table td {
+                padding: 6px;
+                font-size: 11px;
+            }
+            
+            .total-label,
+            .total-value {
+                font-size: 14px;
+            }
+        }
+        
+        /* Прокрутка для очень маленьких экранов */
+        @media (max-width: 320px) {
+            .car-option {
+                min-width: 100%;
+                max-width: 100%;
+            }
+            
+            .car-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+            
+            .file-actions {
+                gap: 8px;
+            }
+        }
+        
+        /* Стили для формы аутентификации */
+        .auth-container {
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: var(--surface);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        
+        .auth-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--text-light);
+        }
+        
+        .auth-switch {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+        
+        .auth-link {
+            color: var(--primary);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        
+        .auth-link:hover {
+            color: var(--accent);
+        }
+        
+        /* Кнопка выхода */
+        .logout-btn {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 1000;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s;
+        }
+        
+        .logout-btn:hover {
+            border-color: var(--error);
+            color: var(--error);
+        }
+        
+        @media (max-width: 768px) {
+            .logout-btn {
+                position: relative;
+                top: 0;
+                left: 0;
+                margin-bottom: 10px;
+                align-self: flex-start;
+            }
+        }
+    </style>
+</head>
+<body class="theme-arch">
+    <div id="authContainer"></div>
+    <div id="appContainer" class="container" style="display: none;">
+        <!-- Кнопка выхода -->
+        <button id="logoutBtn" class="logout-btn">
+            <i class="fas fa-sign-out-alt"></i> Выйти
+        </button>
+        
+        <!-- Панель выбора темы -->
+        <div class="theme-selector">
+            <div class="theme-btn arch active" data-theme="arch" title="Arch Linux">
+                <i class="fab fa-linux"></i>
+            </div>
+            <div class="theme-btn rosepine" data-theme="rosepine" title="Rosé Pine">
+                <i class="fas fa-moon"></i>
+            </div>
+        </div>
+        
+        <!-- Шапка приложения -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i class="fas fa-car"></i>
+                </div>
+                <div>
+                    <div class="logo-text">Мои Авто</div>
+                    <div class="logo-subtext">Архив ремонтов и обслуживания</div>
+                </div>
+            </div>
+            
+            <div class="car-selector">
+                <div class="car-option active" data-car="focus">
+                    <img src="https://via.placeholder.com/140x70/2d3748/7aa2f7?text=Ford+Focus" alt="Ford Focus 3" class="car-image">
+                    <div class="car-name">Ford Focus 3</div>
+                    <div class="car-details">2012, серебристый</div>
+                </div>
+                
+                <div class="car-option" data-car="peugeot">
+                    <img src="https://via.placeholder.com/140x70/2d3748/eb6f92?text=Peugeot+207" alt="Peugeot 207" class="car-image">
+                    <div class="car-name">Peugeot 207</div>
+                    <div class="car-details">2008, синий</div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Поисковая строка -->
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-input" placeholder="Поиск по деталям, работам, производителям или СТО...">
+            <div class="search-icon">
+                <i class="fas fa-search"></i>
+            </div>
+        </div>
+        
+        <!-- Информация о результатах поиска -->
+        <div class="search-results-info hidden" id="searchResultsInfo">
+            <div>
+                <span id="resultsCount">0</span> результатов по запросу "<span id="currentSearchTerm"></span>"
+            </div>
+            <button class="clear-search" id="clearSearchBtn">
+                <i class="fas fa-times"></i> Очистить поиск
+            </button>
+        </div>
+        
+        <!-- Статус сообщения -->
+        <div class="status-message" id="statusMessage"></div>
+        
+        <!-- Основное содержимое -->
+        <main class="main-content">
+            <!-- Левая колонка: информация об автомобиле -->
+            <section class="car-info">
+                <h2 class="section-title">
+                    <i class="fas fa-history"></i> История ремонтов
+                </h2>
+                <!-- Блок общей информации об автомобиле -->
+                <div class="car-stats" id="carStats">
+                    <div class="stat-item">
+                        <div class="stat-label">Модель</div>
+                        <div class="stat-value" id="carModel">Ford Focus 3</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Год выпуска</div>
+                        <div class="stat-value" id="carYear">2012</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Цвет</div>
+                        <div class="stat-value" id="carColor">Серебристый</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Всего ремонтов</div>
+                        <div class="stat-value" id="totalRepairs">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Всего затрат</div>
+                        <div class="stat-value" id="totalSpent">0 руб</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Последний ремонт</div>
+                        <div class="stat-value" id="lastRepair">Нет данных</div>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="repairs-table" id="repairsTable">
+                        <thead>
+                            <tr>
+                                <th data-sort="date" data-order="desc">
+                                    Дата <i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i>
+                                </th>
+                                <th data-sort="mileage" data-order="">
+                                    Пробег (км) <i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i>
+                                </th>
+                                <th data-sort="short_work" data-order="">
+                                    Работа <i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i>
+                                </th>
+                                <th data-sort="sto" data-order="">
+                                    СТО <i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i>
+                                </th>
+                                <th data-sort="price" data-order="">
+                                    Стоимость (руб) <i class="fas fa-sort-up"></i><i class="fas fa-sort-down"></i>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="repairsBody">
+                            <!-- Данные о ремонтах будут заполнены JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Кнопка добавления ремонта -->
+                <div class="text-center mt-20">
+                    <button id="addRepairBtn" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Добавить ремонт
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Правая колонка: формы -->
+            <section class="car-info">
+                <h2 class="section-title">
+                    <i class="fas fa-wrench"></i> Добавление / редактирование ремонта
+                </h2>
+                
+                <!-- Форма добавления ремонта -->
+                <div class="add-repair-form" id="addRepairForm">
+                    <div class="form-group">
+                        <label class="form-label">Дата ремонта (ДД.ММ.ГГГГ)</label>
+                        <input type="text" class="form-input" id="repairDate" placeholder="15.03.2023">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Пробег (км)</label>
+                        <input type="number" class="form-input" id="repairMileage" placeholder="125000">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Краткое описание работ</label>
+                        <input type="text" class="form-input" id="repairShortWork" placeholder="Замена КПП и сцепления">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">СТО</label>
+                        <input type="text" class="form-input" id="repairSto" placeholder="Автосервис 'Форд-центр'">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Общая стоимость (руб)</label>
+                        <input type="number" class="form-input" id="repairPrice" placeholder="18500">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Работы (по одной на строку, формат: Название=Цена)</label>
+                        <textarea class="form-textarea" id="repairWorks" placeholder="Замена КПП (БУ)=30000
+Замена масла КПП=3000"></textarea>
+                        <small style="color: var(--text); font-size: 12px;">Пример: Название работы=Цена</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Запчасти (по одной на строку, формат: Название|Производитель|Артикул|Кол-во|Цена)</label>
+                        <textarea class="form-textarea" id="repairParts" placeholder="КПП (БУ)|||1|0
+Масло КПП|||1|0"></textarea>
+                        <small style="color: var(--text); font-size: 12px;">Пример: Название|Производитель|Артикул|Кол-во|Цена</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Примечания</label>
+                        <textarea class="form-textarea" id="repairNotes" placeholder="Дополнительная информация..."></textarea>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                        <button id="saveRepairBtn" class="btn btn-success">
+                            <i class="fas fa-save"></i> Сохранить ремонт
+                        </button>
+                        <button id="cancelRepairBtn" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Отмена
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Форма редактирования ремонта -->
+                <div class="edit-repair-form" id="editRepairForm">
+                    <input type="hidden" id="editRepairId">
+                    
+                    <div class="form-group">
+                        <label class="form-label">Дата ремонта (ДД.ММ.ГГГГ)</label>
+                        <input type="text" class="form-input" id="editRepairDate" placeholder="15.03.2023">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Пробег (км)</label>
+                        <input type="number" class="form-input" id="editRepairMileage" placeholder="125000">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Краткое описание работ</label>
+                        <input type="text" class="form-input" id="editRepairShortWork" placeholder="Замена КПП и сцепления">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">СТО</label>
+                        <input type="text" class="form-input" id="editRepairSto" placeholder="Автосервис 'Форд-центр'">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Общая стоимость (руб)</label>
+                        <input type="number" class="form-input" id="editRepairPrice" placeholder="18500">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Работы (по одной на строку, формат: Название=Цена)</label>
+                        <textarea class="form-textarea" id="editRepairWorks" placeholder="Замена КПП (БУ)=30000
+Замена масла КПП=3000"></textarea>
+                        <small style="color: var(--text); font-size: 12px;">Пример: Название работы=Цена</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Запчасти (по одной на строку, формат: Название|Производитель|Артикул|Кол-во|Цена)</label>
+                        <textarea class="form-textarea" id="editRepairParts" placeholder="КПП (БУ)|||1|0
+Масло КПП|||1|0"></textarea>
+                        <small style="color: var(--text); font-size: 12px;">Пример: Название|Производитель|Артикул|Кол-во|Цена</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Примечания</label>
+                        <textarea class="form-textarea" id="editRepairNotes" placeholder="Дополнительная информация..."></textarea>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                        <button id="updateRepairBtn" class="btn btn-success">
+                            <i class="fas fa-save"></i> Обновить ремонт
+                        </button>
+                        <button id="cancelEditBtn" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Отмена
+                        </button>
+                        <button id="deleteRepairBtn" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Удалить
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Работа с данными -->
+                <div id="dataSection">
+                    <h2 class="section-title" style="margin-top: 20px;">
+                        <i class="fas fa-file-alt"></i> Управление данными
+                    </h2>
+                    
+                    <div class="file-actions">
+                        <button id="saveToFileBtn" class="btn btn-success">
+                            <i class="fas fa-save"></i> Сохранить в TXT
+                        </button>
+                        <button id="loadFromFileBtn" class="btn btn-primary">
+                            <i class="fas fa-file-upload"></i> Загрузить из TXT
+                        </button>
+                        <button id="exportJsonBtn" class="btn btn-secondary">
+                            <i class="fas fa-file-export"></i> Экспорт JSON
+                        </button>
+                        <button id="addSampleDataBtn" class="btn btn-warning">
+                            <i class="fas fa-plus-circle"></i> Пример данных
+                        </button>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label class="form-label">Добавить/обновить данные в формате JSON</label>
+                        <div class="data-example">
+                            <div class="data-example-title">
+                                <i class="fas fa-info-circle"></i> Пример структуры данных:
+                            </div>
+                            <code>
+{
+  "focus": {
+    "repairs": [
+      {
+        "id": 1,
+        "date": "01.08.2024",
+        "mileage": 125000,
+        "short_work": "Замена КПП",
+        "total_price": 33000,
+        "sto": "Альфатранс",
+        "work_items": [...],
+        "part_items": [...],
+        "notes": ""
+      }
+    ]
+  }
+}
+                            </code>
+                        </div>
+                        <textarea class="form-textarea" id="jsonInput" placeholder="Вставьте JSON с данными..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button id="mergeDataBtn" class="btn btn-primary" style="width: 100%;">
+                            <i class="fas fa-code-merge"></i> Объединить данные
+                        </button>
+                    </div>
+                    
+                    <div class="data-example" style="margin-top: 15px;">
+                    <div class="data-example-title" style="cursor: pointer;" id="toggleStructureBtn">
+                        <i class="fas fa-database"></i> Текущая структура данных:
+                        <i class="fas fa-chevron-down" id="structureChevron" style="margin-left: auto; font-size: 11px;"></i>
+                    </div>
+                    <div id="structureContent" style="display: none;">
+                        <pre><code id="currentStructure">
+Загрузка...
+                        </code></pre>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Футер -->
+        <footer class="footer">
+            <p>Приложение "Мои Авто" | <span id="themeName">Arch Linux</span> | Данные хранятся в облаке</p>
+        </footer>
+    </div>
+
+    <!-- Скрытые input для загрузки файлов -->
+    <input type="file" id="fileInput" accept=".txt,.json" style="display: none;">
+    
+    <script>
+        // 🔧 НАСТРОЙКИ FIREBASE - ЗАМЕНИТЕ ЭТИ ДАННЫЕ НА СВОИ!
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHkZUAPpv0Oz0kyEQxRBGix4ycZRFfn0M",
+            authDomain: "my-cars-app-2b2c3.firebaseapp.com",
+            projectId: "my-cars-app-2b2c3",
+            storageBucket: "my-cars-app-2b2c3.firebasestorage.app",
+            messagingSenderId: "10200558251",
+            appId: "1:10200558251:web:2ada73bf42f0ba7af165ee"
+        };
+
+        // Инициализация Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Глобальные переменные
+        let currentUser = null;
+        let userSettings = null;
+        let carData = {
+            "focus": {
+                "model": "Ford Focus 3",
+                "year": 2012,
+                "color": "Серебристый",
+                "totalSpent": 0,
+                "totalRepairs": 0,
+                "lastRepair": "",
+                "repairs": []
+            },
+            "peugeot": {
+                "model": "Peugeot 207",
+                "year": 2008,
+                "color": "Синий",
+                "totalSpent": 0,
+                "totalRepairs": 0,
+                "lastRepair": "",
+                "repairs": []
+            }
+        };
+
+        const samplePeugeotData = {
+            "peugeot": {
+                "repairs": [
+                    {
+                        "id": 1,
+                        "date": "01.08.2024",
+                        "mileage": 125000,
+                        "short_work": "Замена КПП",
+                        "total_price": 33000,
+                        "sto": "Альфатранс",
+                        "work_items": [
+                            {
+                                "name": "Замена КПП (БУ)",
+                                "price": 30000
+                            },
+                            {
+                                "name": "Замена масла КПП",
+                                "price": 3000
+                            }
+                        ],
+                        "part_items": [],
+                        "notes": "Замена коробки передач"
+                    }
+                ]
+            }
+        };
+
+        let currentCar = 'focus';
+        let searchTerm = '';
+        let searchTimeout = null;
+        let searchDebounceDelay = 300;
+        let currentSort = 'date';
+        let currentOrder = 'desc';
+        let expandedRepairId = null;
+        let editingRepairId = null;
+
+        // ==================== АУТЕНТИФИКАЦИЯ ====================
+
+        function showAuthForm() {
+            const authContainer = document.getElementById('authContainer');
+            const appContainer = document.getElementById('appContainer');
+            
+            authContainer.style.display = 'block';
+            appContainer.style.display = 'none';
+            
+            authContainer.innerHTML = `
+                <div class="auth-container">
+                    <h2 class="auth-title">
+                        <i class="fas fa-car"></i> Мои Авто
+                    </h2>
+                    <div id="loginSection">
+                        <h3 style="margin-bottom: 15px; color: var(--text-light);">Вход</h3>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" id="loginEmail" class="form-input" placeholder="email@example.com" value="test@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input type="password" id="loginPassword" class="form-input" placeholder="Пароль" value="test123">
+                        </div>
+                        <button id="loginBtn" class="btn btn-primary" style="width: 100%; margin-bottom: 15px;">
+                            <i class="fas fa-sign-in-alt"></i> Войти
+                        </button>
+                        <button id="showRegisterBtn" class="btn btn-secondary" style="width: 100%;">
+                            <i class="fas fa-user-plus"></i> Зарегистрироваться
+                        </button>
+                        <div class="auth-switch">
+                            <small>Или войдите с помощью тестового аккаунта:</small>
+                            <button id="testLoginBtn" class="btn btn-warning" style="width: 100%; margin-top: 10px;">
+                                <i class="fas fa-user-check"></i> Тестовый вход
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="registerSection" style="display: none;">
+                        <h3 style="margin-bottom: 15px; color: var(--text-light);">Регистрация</h3>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" id="registerEmail" class="form-input" placeholder="email@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пароль</label>
+                            <input type="password" id="registerPassword" class="form-input" placeholder="Пароль (минимум 6 символов)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Подтвердите пароль</label>
+                            <input type="password" id="registerPasswordConfirm" class="form-input" placeholder="Повторите пароль">
+                        </div>
+                        <button id="registerBtn" class="btn btn-success" style="width: 100%; margin-bottom: 15px;">
+                            <i class="fas fa-user-plus"></i> Зарегистрироваться
+                        </button>
+                        <button id="showLoginBtn" class="btn btn-secondary" style="width: 100%;">
+                            <i class="fas fa-sign-in-alt"></i> Назад ко входу
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 20px; text-align: center; font-size: 12px; color: var(--text);">
+                        Данные хранятся в облаке и доступны с любого устройства
+                    </div>
+                    
+                    <div id="authStatus" class="status-message" style="margin-top: 15px;"></div>
+                </div>
+            `;
+
+            // Обработчики событий
+            document.getElementById('loginBtn').addEventListener('click', loginUser);
+            document.getElementById('registerBtn').addEventListener('click', registerUser);
+            document.getElementById('testLoginBtn').addEventListener('click', testLogin);
+            document.getElementById('showRegisterBtn').addEventListener('click', () => toggleAuthForms('register'));
+            document.getElementById('showLoginBtn').addEventListener('click', () => toggleAuthForms('login'));
+        }
+
+        function toggleAuthForms(form) {
+            const loginSection = document.getElementById('loginSection');
+            const registerSection = document.getElementById('registerSection');
+            
+            if (form === 'register') {
+                loginSection.style.display = 'none';
+                registerSection.style.display = 'block';
+            } else {
+                loginSection.style.display = 'block';
+                registerSection.style.display = 'none';
+            }
+        }
+
+        async function loginUser() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                showAuthStatus('Вход выполнен успешно!', 'success');
+            } catch (error) {
+                showAuthStatus(getErrorMessage(error), 'error');
+            }
+        }
+
+        async function registerUser() {
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('registerPasswordConfirm').value;
+            
+            if (password !== confirmPassword) {
+                showAuthStatus('Пароли не совпадают', 'error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showAuthStatus('Пароль должен быть не менее 6 символов', 'error');
+                return;
+            }
+            
+            try {
+                await auth.createUserWithEmailAndPassword(email, password);
+                showAuthStatus('Регистрация успешна!', 'success');
+            } catch (error) {
+                showAuthStatus(getErrorMessage(error), 'error');
+            }
+        }
+
+        async function testLogin() {
+            try {
+                await auth.signInWithEmailAndPassword('test@example.com', 'test123');
+                showAuthStatus('Тестовый вход выполнен!', 'success');
+            } catch (error) {
+                // Если тестового пользователя нет, создаем его
+                try {
+                    await auth.createUserWithEmailAndPassword('test@example.com', 'test123');
+                    showAuthStatus('Тестовый пользователь создан и выполнен вход!', 'success');
+                } catch (createError) {
+                    showAuthStatus(getErrorMessage(createError), 'error');
+                }
+            }
+        }
+
+        function showAuthStatus(message, type) {
+            const statusEl = document.getElementById('authStatus');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message';
+            statusEl.classList.add(`status-${type}`);
+            statusEl.style.display = 'block';
+            
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 3000);
+        }
+
+        function getErrorMessage(error) {
+            switch (error.code) {
+                case 'auth/invalid-email':
+                    return 'Неверный формат email';
+                case 'auth/user-disabled':
+                    return 'Пользователь заблокирован';
+                case 'auth/user-not-found':
+                    return 'Пользователь не найден';
+                case 'auth/wrong-password':
+                    return 'Неверный пароль';
+                case 'auth/email-already-in-use':
+                    return 'Email уже используется';
+                case 'auth/weak-password':
+                    return 'Пароль слишком простой';
+                case 'auth/network-request-failed':
+                    return 'Ошибка сети. Проверьте подключение';
+                default:
+                    return error.message || 'Произошла ошибка';
+            }
+        }
+
+        // ==================== ОСНОВНЫЕ ФУНКЦИИ ====================
+
+        async function loadUserData() {
+            try {
+                if (!currentUser) return;
+                
+                // Загружаем настройки пользователя
+                const settingsRef = db.collection('userSettings').doc(currentUser.uid);
+                const settingsDoc = await settingsRef.get();
+                
+                if (settingsDoc.exists) {
+                    userSettings = settingsDoc.data();
+                    // Восстанавливаем тему из настроек
+                    if (userSettings.theme) {
+                        switchTheme(userSettings.theme, false);
+                    }
+                } else {
+                    // Создаем настройки по умолчанию
+                    userSettings = {
+                        theme: 'arch',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    await settingsRef.set(userSettings);
+                }
+                
+                // Загружаем данные автомобилей
+                const carsRef = db.collection('userCars').doc(currentUser.uid);
+                const carsDoc = await carsRef.get();
+                
+                if (carsDoc.exists) {
+                    const data = carsDoc.data();
+                    if (data.carData) {
+                        carData = data.carData;
+                    }
+                } else {
+                    // Создаем данные по умолчанию
+                    await carsRef.set({
+                        email: currentUser.email,
+                        carData: carData,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                
+                // Загружаем локальную копию для оффлайн-работы
+                const localData = localStorage.getItem(`myCarsData_${currentUser.uid}`);
+                if (localData) {
+                    try {
+                        const parsedData = JSON.parse(localData);
+                        // Синхронизируем локальные данные с облачными
+                        carData = mergeCarData(carData, parsedData);
+                    } catch (e) {
+                        console.error('Ошибка парсинга локальных данных:', e);
+                    }
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Ошибка загрузки данных:', error);
+                showStatus('Ошибка загрузки данных. Проверьте подключение.', 'error');
+                return false;
+            }
+        }
+
+        function mergeCarData(cloudData, localData) {
+            // Простая логика слияния - предпочтение отдается облачным данным
+            const merged = { ...cloudData };
+            
+            Object.keys(localData).forEach(carKey => {
+                if (!merged[carKey]) {
+                    merged[carKey] = localData[carKey];
+                } else if (localData[carKey].repairs) {
+                    // Объединяем ремонты
+                    localData[carKey].repairs.forEach(localRepair => {
+                        const exists = merged[carKey].repairs.some(r => r.id === localRepair.id);
+                        if (!exists) {
+                            merged[carKey].repairs.push(localRepair);
+                        }
+                    });
+                }
+            });
+            
+            return merged;
+        }
+
+        async function saveUserData() {
+            try {
+                if (!currentUser) return false;
+                
+                // Сохраняем локально для оффлайн-работы
+                localStorage.setItem(`myCarsData_${currentUser.uid}`, JSON.stringify(carData));
+                
+                // Сохраняем в Firebase
+                await db.collection('userCars').doc(currentUser.uid).update({
+                    carData: carData,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                return true;
+            } catch (error) {
+                console.error('Ошибка сохранения данных:', error);
+                showStatus('Ошибка сохранения. Данные сохранены локально.', 'warning');
+                return false;
+            }
+        }
+
+        async function saveUserSettings() {
+            try {
+                if (!currentUser || !userSettings) return;
+                
+                await db.collection('userSettings').doc(currentUser.uid).update({
+                    ...userSettings,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (error) {
+                console.error('Ошибка сохранения настроек:', error);
+            }
+        }
+
+        // ==================== УПРАВЛЕНИЕ ТЕМОЙ ====================
+
+        function switchTheme(theme, saveToServer = true) {
+            // Удаляем текущие классы темы
+            document.body.classList.remove('theme-arch', 'theme-rosepine');
+            
+            // Добавляем новый класс темы
+            document.body.classList.add(`theme-${theme}`);
+            
+            // Обновляем активную кнопку
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`.theme-btn[data-theme="${theme}"]`).classList.add('active');
+            
+            // Обновляем текст футера
+            const themeName = theme === 'arch' ? 'Arch Linux' : 'Rosé Pine';
+            document.getElementById('themeName').textContent = themeName;
+            
+            // Сохраняем в настройках пользователя
+            if (userSettings) {
+                userSettings.theme = theme;
+                
+                // Сохраняем локально
+                localStorage.setItem('myCarsTheme', theme);
+                
+                // Сохраняем на сервере если требуется
+                if (saveToServer && currentUser) {
+                    saveUserSettings();
+                }
+            }
+        }
+
+        function loadSavedTheme() {
+            // Пробуем загрузить тему из настроек пользователя
+            if (userSettings && userSettings.theme) {
+                switchTheme(userSettings.theme, false);
+            } else {
+                // Или из localStorage
+                const savedTheme = localStorage.getItem('myCarsTheme') || 'arch';
+                switchTheme(savedTheme, false);
+            }
+        }
+
+        // ==================== ОСНОВНАЯ ЛОГИКА ====================
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Отслеживаем состояние аутентификации
+            auth.onAuthStateChanged(async user => {
+                if (user) {
+                    currentUser = user;
+                    const loaded = await loadUserData();
+                    
+                    if (loaded) {
+                        // Показываем основное приложение
+                        document.getElementById('authContainer').style.display = 'none';
+                        document.getElementById('appContainer').style.display = 'flex';
+                        
+                        // Загружаем сохраненную тему
+                        loadSavedTheme();
+                        
+                        // Инициализируем приложение
+                        initApp();
+                    }
+                } else {
+                    // Показываем форму аутентификации
+                    showAuthForm();
+                }
+            });
+            
+            // Кнопка выхода
+            document.addEventListener('click', function(e) {
+                if (e.target && e.target.id === 'logoutBtn') {
+                    auth.signOut();
+                }
+            });
+        });
+
+        function initApp() {
+            updateCarInfo();
+            updateRepairsTable();
+            updateCarStatsDisplay();
+            setSortIndicator('date', 'desc');
+            
+            // Обработчики событий
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            // Переключение темы
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const theme = this.getAttribute('data-theme');
+                    switchTheme(theme);
+                });
+            });
+            
+            // Выбор автомобиля
+            document.querySelectorAll('.car-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.car-option').forEach(opt => {
+                        opt.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    currentCar = this.getAttribute('data-car');
+                    updateCarInfo();
+                    updateCarStatsDisplay();
+                    updateRepairsTable();
+                    expandedRepairId = null;
+                    closeAllForms();
+                });
+            });
+            
+            // Поиск
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', function() {
+                performSearch(this.value);
+            });
+            
+            document.getElementById('clearSearchBtn').addEventListener('click', function() {
+                searchInput.value = '';
+                performSearch('');
+            });
+            
+            // Кнопки ремонтов
+            document.getElementById('addRepairBtn').addEventListener('click', function() {
+                document.getElementById('addRepairForm').classList.add('active');
+                document.getElementById('editRepairForm').classList.remove('active');
+                document.getElementById('dataSection').style.display = 'none';
+                resetAddForm();
+            });
+            
+            document.getElementById('saveRepairBtn').addEventListener('click', saveRepair);
+            document.getElementById('cancelRepairBtn').addEventListener('click', closeAllForms);
+            document.getElementById('updateRepairBtn').addEventListener('click', updateRepair);
+            document.getElementById('cancelEditBtn').addEventListener('click', closeAllForms);
+            document.getElementById('deleteRepairBtn').addEventListener('click', deleteRepair);
+            
+            // Файловые операции
+            document.getElementById('saveToFileBtn').addEventListener('click', saveToFile);
+            document.getElementById('loadFromFileBtn').addEventListener('click', function() {
+                document.getElementById('fileInput').click();
+            });
+            document.getElementById('exportJsonBtn').addEventListener('click', exportJson);
+            document.getElementById('addSampleDataBtn').addEventListener('click', addSampleData);
+            document.getElementById('mergeDataBtn').addEventListener('click', mergeData);
+            
+            document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+            
+            // Сортировка таблицы
+            document.querySelectorAll('.repairs-table th[data-sort]').forEach(th => {
+                th.addEventListener('click', function() {
+                    const sortField = this.getAttribute('data-sort');
+                    sortTable(sortField);
+                });
+            });
+            
+            // Структура данных
+            document.getElementById('toggleStructureBtn').addEventListener('click', toggleStructure);
+        }
+
+        // ==================== ФУНКЦИИ РЕМОНТОВ ====================
+
+        function updateCarInfo() {
+            const car = carData[currentCar];
+            car.totalRepairs = car.repairs.length;
+            car.totalSpent = car.repairs.reduce((sum, repair) => sum + repair.total_price, 0);
+            
+            if (car.repairs.length > 0) {
+                const sortedRepairs = [...car.repairs].sort((a, b) => parseDate(b.date) - parseDate(a.date));
+                car.lastRepair = sortedRepairs[0].date;
+            } else {
+                car.lastRepair = '';
+            }
+            
+            saveUserData();
+            updateCarStatsDisplay();
+        }
+
+        function updateCarStatsDisplay() {
+            const car = carData[currentCar];
+            document.getElementById('carModel').textContent = car.model || '';
+            document.getElementById('carYear').textContent = car.year || '';
+            document.getElementById('carColor').textContent = car.color || '';
+            document.getElementById('totalRepairs').textContent = car.totalRepairs || 0;
+            document.getElementById('totalSpent').textContent = (car.totalSpent || 0).toLocaleString('ru-RU') + ' руб';
+            document.getElementById('lastRepair').textContent = car.lastRepair || 'Нет данных';
+        }
+
+        function updateRepairsTable() {
+            const car = carData[currentCar];
+            const repairsBody = document.getElementById('repairsBody');
+            const searchResultsInfo = document.getElementById('searchResultsInfo');
+            const resultsCount = document.getElementById('resultsCount');
+            const currentSearchTerm = document.getElementById('currentSearchTerm');
+            
+            let filteredRepairs = [...car.repairs];
+            if (searchTerm) {
+                const term = searchTerm.toLowerCase();
+                filteredRepairs = car.repairs.filter(repair => {
+                    const shortMatch = repair.short_work && repair.short_work.toLowerCase().includes(term);
+                    const worksMatch = repair.work_items && repair.work_items.some(item => 
+                        item.name && item.name.toLowerCase().includes(term)
+                    );
+                    const partsMatch = repair.part_items && repair.part_items.some(item => 
+                        (item.name && item.name.toLowerCase().includes(term)) ||
+                        (item.manufacturer && item.manufacturer.toLowerCase().includes(term)) ||
+                        (item.article && item.article.toLowerCase().includes(term))
+                    );
+                    const stoMatch = repair.sto && repair.sto.toLowerCase().includes(term);
+                    const notesMatch = repair.notes && repair.notes.toLowerCase().includes(term);
+                    
+                    return shortMatch || worksMatch || partsMatch || stoMatch || notesMatch;
+                });
+            }
+            
+            filteredRepairs = sortRepairs(filteredRepairs, currentSort, currentOrder);
+            
+            if (searchTerm) {
+                searchResultsInfo.classList.remove('hidden');
+                resultsCount.textContent = filteredRepairs.length;
+                currentSearchTerm.textContent = searchTerm;
+            } else {
+                searchResultsInfo.classList.add('hidden');
+            }
+            
+            if (filteredRepairs.length === 0) {
+                repairsBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="no-results">
+                            ${searchTerm ? 'По запросу "' + searchTerm + '" ничего не найдено' : 'Нет данных о ремонтах'}
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            repairsBody.innerHTML = filteredRepairs.map(repair => {
+                const isExpanded = expandedRepairId === repair.id;
+                let workDisplay = repair.short_work || 'Ремонтные работы';
+                let stoDisplay = repair.sto || '';
+                
+                if (searchTerm) {
+                    const term = searchTerm.toLowerCase();
+                    const highlightText = (text) => {
+                        if (!text) return '';
+                        const regex = new RegExp(`(${term})`, 'gi');
+                        return text.replace(regex, '<span class="highlight">$1</span>');
+                    };
+                    workDisplay = highlightText(repair.short_work || 'Ремонтные работы');
+                    stoDisplay = highlightText(repair.sto || '');
+                }
+                
+                return `
+                    <tr class="${isExpanded ? 'expanded' : ''}" data-repair-id="${repair.id}">
+                        <td>${repair.date || ''}</td>
+                        <td>${repair.mileage ? repair.mileage.toLocaleString('ru-RU') : ''}</td>
+                        <td>
+                            <div class="repair-part">${workDisplay}</div>
+                        </td>
+                        <td class="repair-sto">${stoDisplay}</td>
+                        <td class="repair-price">${repair.total_price ? repair.total_price.toLocaleString('ru-RU') : '0'} руб</td>
+                    </tr>
+                    <tr id="details-${repair.id}" class="repair-details-row">
+                        <td colspan="5">
+                            <div class="repair-details ${isExpanded ? 'active' : ''}" id="repair-details-${repair.id}">
+                                ${renderRepairDetails(repair)}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            // Обработчики кликов на строки
+            document.querySelectorAll('.repairs-table tr[data-repair-id]').forEach(row => {
+                row.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'TH' || e.target.closest('th')) return;
+                    if (e.target.closest('.edit-repair-btn')) return;
+                    
+                    const repairId = parseInt(this.getAttribute('data-repair-id'));
+                    expandedRepairId = expandedRepairId === repairId ? null : repairId;
+                    updateRepairsTable();
+                });
+            });
+            
+            updateStructureDisplay();
+        }
+
+        function renderRepairDetails(repair) {
+            let detailsHtml = `
+                <div class="details-section">
+                    <div class="details-title">
+                        <i class="fas fa-tools"></i> Работы
+                    </div>
+            `;
+            
+            if (repair.work_items && repair.work_items.length > 0) {
+                const worksTotal = repair.work_items.reduce((sum, item) => sum + (item.price || 0), 0);
+                
+                detailsHtml += `
+                    <table class="details-table">
+                        <thead>
+                            <tr>
+                                <th>Наименование работы</th>
+                                <th width="100">Стоимость</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                repair.work_items.forEach(item => {
+                    detailsHtml += `
+                        <tr>
+                            <td>${item.name || ''}${item.note ? `<br><small style="color: var(--warning); font-size: 11px;">${item.note}</small>` : ''}</td>
+                            <td class="work-price">${item.price ? item.price.toLocaleString('ru-RU') : '0'} руб</td>
+                        </tr>
+                    `;
+                });
+                
+                detailsHtml += `
+                        </tbody>
+                    </table>
+                    <div style="text-align: right; margin-top: 5px; font-size: 13px;">
+                        <strong>Итого работ:</strong> ${worksTotal.toLocaleString('ru-RU')} руб
+                    </div>
+                `;
+            } else {
+                detailsHtml += `<p style="color: var(--text); font-style: italic; font-size: 13px;">Нет информации о работах</p>`;
+            }
+            
+            detailsHtml += `</div><div class="details-section">
+                    <div class="details-title">
+                        <i class="fas fa-cog"></i> Запчасти
+                    </div>`;
+            
+            if (repair.part_items && repair.part_items.length > 0) {
+                const partsTotal = repair.part_items.reduce((sum, item) => {
+                    const quantity = item.quantity || 1;
+                    return sum + (item.price || 0) * quantity;
+                }, 0);
+                
+                detailsHtml += `
+                    <table class="details-table">
+                        <thead>
+                            <tr>
+                                <th>Наименование</th>
+                                <th width="80">Производитель</th>
+                                <th width="80">Артикул</th>
+                                <th width="60">Кол-во</th>
+                                <th width="100">Стоимость</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                repair.part_items.forEach(item => {
+                    const quantity = item.quantity || 1;
+                    const totalPrice = (item.price || 0) * quantity;
+                    
+                    detailsHtml += `
+                        <tr>
+                            <td>${item.name || ''}${item.note ? `<br><small style="color: var(--warning); font-size: 11px;">${item.note}</small>` : ''}</td>
+                            <td>${item.manufacturer || ''}</td>
+                            <td>${item.article || ''}</td>
+                            <td>${quantity}</td>
+                            <td class="part-price">${totalPrice.toLocaleString('ru-RU')} руб</td>
+                        </tr>
+                    `;
+                });
+                
+                detailsHtml += `
+                        </tbody>
+                    </table>
+                    <div style="text-align: right; margin-top: 5px; font-size: 13px;">
+                        <strong>Итого запчастей:</strong> ${partsTotal.toLocaleString('ru-RU')} руб
+                    </div>
+                `;
+            } else {
+                detailsHtml += `<p style="color: var(--text); font-style: italic; font-size: 13px;">Нет информации о запчастях</p>`;
+            }
+            
+            detailsHtml += `</div>
+                <div class="details-total">
+                    <div class="total-label">Общая стоимость ремонта:</div>
+                    <div class="total-value">${repair.total_price ? repair.total_price.toLocaleString('ru-RU') : '0'} руб</div>
+                </div>`;
+            
+            if (repair.notes) {
+                detailsHtml += `
+                    <div class="repair-notes">
+                        <i class="fas fa-sticky-note"></i> <strong>Примечания:</strong> ${repair.notes}
+                    </div>
+                `;
+            }
+            
+            detailsHtml += `
+                <div class="repair-actions">
+                    <button class="btn btn-warning edit-repair-btn" data-repair-id="${repair.id}">
+                        <i class="fas fa-edit"></i> Редактировать
+                    </button>
+                </div>
+            `;
+            
+            // Обработчики кнопок редактирования
+            setTimeout(() => {
+                document.querySelectorAll('.edit-repair-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const repairId = parseInt(this.getAttribute('data-repair-id'));
+                        openEditForm(repairId);
+                    });
+                });
+            }, 100);
+            
+            return detailsHtml;
+        }
+
+        // ==================== ОПЕРАЦИИ С РЕМОНТАМИ ====================
+
+        async function saveRepair() {
+            const date = document.getElementById('repairDate').value.trim();
+            const mileage = parseInt(document.getElementById('repairMileage').value);
+            const shortWork = document.getElementById('repairShortWork').value.trim();
+            const sto = document.getElementById('repairSto').value.trim();
+            const price = parseInt(document.getElementById('repairPrice').value);
+            const worksText = document.getElementById('repairWorks').value.trim();
+            const partsText = document.getElementById('repairParts').value.trim();
+            const notes = document.getElementById('repairNotes').value.trim();
+            
+            if (!date || !shortWork || !sto || isNaN(price) || price <= 0) {
+                showStatus('Пожалуйста, заполните обязательные поля корректно', 'error');
+                return;
+            }
+            
+            const dateRegex = /^\d{2}\.\d{2}\.\d{4}$/;
+            if (!dateRegex.test(date)) {
+                showStatus('Дата должна быть в формате ДД.ММ.ГГГГ', 'error');
+                return;
+            }
+            
+            const repairId = Date.now();
+            
+            // Парсим работы
+            const workItems = [];
+            if (worksText) {
+                const lines = worksText.split('\n');
+                lines.forEach(line => {
+                    line = line.trim();
+                    if (line) {
+                        const parts = line.split('=');
+                        if (parts.length >= 2) {
+                            workItems.push({
+                                name: parts[0].trim(),
+                                price: parseFloat(parts[1].trim()) || 0
+                            });
+                        } else if (parts.length === 1) {
+                            workItems.push({
+                                name: parts[0].trim(),
+                                price: 0
+                            });
+                        }
+                    }
+                });
+            }
+            
+            // Парсим запчасти
+            const partItems = [];
+            if (partsText) {
+                const lines = partsText.split('\n');
+                lines.forEach(line => {
+                    line = line.trim();
+                    if (line) {
+                        const parts = line.split('|');
+                        if (parts.length >= 5) {
+                            partItems.push({
+                                name: parts[0].trim(),
+                                manufacturer: parts[1].trim(),
+                                article: parts[2].trim(),
+                                quantity: parseInt(parts[3].trim()) || 1,
+                                price: parseFloat(parts[4].trim()) || 0
+                            });
+                        } else if (parts.length === 1) {
+                            partItems.push({
+                                name: parts[0].trim(),
+                                manufacturer: '',
+                                article: '',
+                                quantity: 1,
+                                price: 0
+                            });
+                        }
+                    }
+                });
+            }
+            
+            const repair = {
+                id: repairId,
+                date,
+                mileage: mileage || 0,
+                short_work: shortWork,
+                total_price: price,
+                sto,
+                work_items: workItems,
+                part_items: partItems,
+                notes
+            };
+            
+            carData[currentCar].repairs.push(repair);
+            closeAllForms();
+            updateCarInfo();
+            updateRepairsTable();
+            
+            const saved = await saveUserData();
+            showStatus(saved ? 'Ремонт успешно добавлен!' : 'Ремонт добавлен локально', saved ? 'success' : 'warning');
+        }
+
+        async function updateRepair() {
+            const repairId = parseInt(document.getElementById('editRepairId').value);
+            const date = document.getElementById('editRepairDate').value.trim();
+            const mileage = parseInt(document.getElementById('editRepairMileage').value);
+            const shortWork = document.getElementById('editRepairShortWork').value.trim();
+            const sto = document.getElementById('editRepairSto').value.trim();
+            const price = parseInt(document.getElementById('editRepairPrice').value);
+            const worksText = document.getElementById('editRepairWorks').value.trim();
+            const partsText = document.getElementById('editRepairParts').value.trim();
+            const notes = document.getElementById('editRepairNotes').value.trim();
+            
+            if (!date || !shortWork || !sto || isNaN(price) || price <= 0) {
+                showStatus('Пожалуйста, заполните обязательные поля корректно', 'error');
+                return;
+            }
+            
+            const dateRegex = /^\d{2}\.\d{2}\.\d{4}$/;
+            if (!dateRegex.test(date)) {
+                showStatus('Дата должна быть в формате ДД.ММ.ГГГГ', 'error');
+                return;
+            }
+            
+            const car = carData[currentCar];
+            const repairIndex = car.repairs.findIndex(r => r.id === repairId);
+            
+            if (repairIndex === -1) {
+                showStatus('Ремонт не найден', 'error');
+                return;
+            }
+            
+            // Парсим работы
+            const workItems = [];
+            if (worksText) {
+                const lines = worksText.split('\n');
+                lines.forEach(line => {
+                    line = line.trim();
+                    if (line) {
+                        const parts = line.split('=');
+                        if (parts.length >= 2) {
+                            workItems.push({
+                                name: parts[0].trim(),
+                                price: parseFloat(parts[1].trim()) || 0
+                            });
+                        } else if (parts.length === 1) {
+                            workItems.push({
+                                name: parts[0].trim(),
+                                price: 0
+                            });
+                        }
+                    }
+                });
+            }
+            
+            // Парсим запчасти
+            const partItems = [];
+            if (partsText) {
+                const lines = partsText.split('\n');
+                lines.forEach(line => {
+                    line = line.trim();
+                    if (line) {
+                        const parts = line.split('|');
+                        if (parts.length >= 5) {
+                            partItems.push({
+                                name: parts[0].trim(),
+                                manufacturer: parts[1].trim(),
+                                article: parts[2].trim(),
+                                quantity: parseInt(parts[3].trim()) || 1,
+                                price: parseFloat(parts[4].trim()) || 0
+                            });
+                        } else if (parts.length === 1) {
+                            partItems.push({
+                                name: parts[0].trim(),
+                                manufacturer: '',
+                                article: '',
+                                quantity: 1,
+                                price: 0
+                            });
+                        }
+                    }
+                });
+            }
+            
+            car.repairs[repairIndex] = {
+                id: repairId,
+                date,
+                mileage: mileage || 0,
+                short_work: shortWork,
+                total_price: price,
+                sto,
+                work_items: workItems,
+                part_items: partItems,
+                notes
+            };
+            
+            closeAllForms();
+            updateCarInfo();
+            updateRepairsTable();
+            
+            const saved = await saveUserData();
+            showStatus(saved ? 'Ремонт успешно обновлен!' : 'Ремонт обновлен локально', saved ? 'success' : 'warning');
+        }
+
+        async function deleteRepair() {
+            const repairId = parseInt(document.getElementById('editRepairId').value);
+            
+            if (!confirm('Вы уверены, что хотите удалить этот ремонт?')) {
+                return;
+            }
+            
+            const car = carData[currentCar];
+            const repairIndex = car.repairs.findIndex(r => r.id === repairId);
+            
+            if (repairIndex === -1) {
+                showStatus('Ремонт не найден', 'error');
+                return;
+            }
+            
+            car.repairs.splice(repairIndex, 1);
+            closeAllForms();
+            updateCarInfo();
+            updateRepairsTable();
+            
+            const saved = await saveUserData();
+            showStatus(saved ? 'Ремонт успешно удален!' : 'Ремонт удален локально', saved ? 'success' : 'warning');
+        }
+
+        // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+
+        function closeAllForms() {
+            document.getElementById('addRepairForm').classList.remove('active');
+            document.getElementById('editRepairForm').classList.remove('active');
+            document.getElementById('dataSection').style.display = 'block';
+            resetAddForm();
+            editingRepairId = null;
+        }
+
+        function resetAddForm() {
+            document.getElementById('repairDate').value = '';
+            document.getElementById('repairMileage').value = '';
+            document.getElementById('repairShortWork').value = '';
+            document.getElementById('repairSto').value = '';
+            document.getElementById('repairPrice').value = '';
+            document.getElementById('repairWorks').value = '';
+            document.getElementById('repairParts').value = '';
+            document.getElementById('repairNotes').value = '';
+        }
+
+        function openEditForm(repairId) {
+            const car = carData[currentCar];
+            const repair = car.repairs.find(r => r.id === repairId);
+            
+            if (!repair) return;
+            
+            editingRepairId = repairId;
+            document.getElementById('editRepairId').value = repairId;
+            document.getElementById('editRepairDate').value = repair.date || '';
+            document.getElementById('editRepairMileage').value = repair.mileage || '';
+            document.getElementById('editRepairShortWork').value = repair.short_work || '';
+            document.getElementById('editRepairSto').value = repair.sto || '';
+            document.getElementById('editRepairPrice').value = repair.total_price || '';
+            document.getElementById('editRepairNotes').value = repair.notes || '';
+            
+            let worksText = '';
+            if (repair.work_items && repair.work_items.length > 0) {
+                worksText = repair.work_items.map(item => `${item.name || ''}=${item.price || 0}`).join('\n');
+            }
+            document.getElementById('editRepairWorks').value = worksText;
+            
+            let partsText = '';
+            if (repair.part_items && repair.part_items.length > 0) {
+                partsText = repair.part_items.map(item => 
+                    `${item.name || ''}|${item.manufacturer || ''}|${item.article || ''}|${item.quantity || 1}|${item.price || 0}`
+                ).join('\n');
+            }
+            document.getElementById('editRepairParts').value = partsText;
+            
+            document.getElementById('editRepairForm').classList.add('active');
+            document.getElementById('addRepairForm').classList.remove('active');
+            document.getElementById('dataSection').style.display = 'none';
+        }
+
+        function addSampleData() {
+            Object.keys(samplePeugeotData).forEach(carKey => {
+                if (carData[carKey]) {
+                    if (samplePeugeotData[carKey].repairs && Array.isArray(samplePeugeotData[carKey].repairs)) {
+                        samplePeugeotData[carKey].repairs.forEach(repair => {
+                            repair.id = Date.now() + Math.floor(Math.random() * 1000);
+                            carData[carKey].repairs.push(repair);
+                        });
+                    }
+                }
+            });
+            
+            updateCarInfo();
+            updateRepairsTable();
+            saveUserData();
+            
+            showStatus('Пример данных успешно добавлен!', 'success');
+        }
+
+        function parseDate(dateStr) {
+            if (!dateStr) return new Date(0);
+            const parts = dateStr.split('.');
+            if (parts.length === 3) {
+                return new Date(parts[2], parts[1] - 1, parts[0]);
+            }
+            return new Date(dateStr);
+        }
+
+        function sortRepairs(repairs, sortBy, order) {
+            return repairs.sort((a, b) => {
+                let aValue, bValue;
+                
+                switch (sortBy) {
+                    case 'date':
+                        aValue = parseDate(a.date);
+                        bValue = parseDate(b.date);
+                        break;
+                    case 'mileage':
+                        aValue = a.mileage || 0;
+                        bValue = b.mileage || 0;
+                        break;
+                    case 'short_work':
+                        aValue = (a.short_work || '').toLowerCase();
+                        bValue = (b.short_work || '').toLowerCase();
+                        break;
+                    case 'sto':
+                        aValue = (a.sto || '').toLowerCase();
+                        bValue = (b.sto || '').toLowerCase();
+                        break;
+                    case 'price':
+                        aValue = a.total_price || 0;
+                        bValue = b.total_price || 0;
+                        break;
+                    default:
+                        aValue = parseDate(a.date);
+                        bValue = parseDate(b.date);
+                }
+                
+                let comparison = 0;
+                if (typeof aValue === 'string') {
+                    comparison = aValue.localeCompare(bValue);
+                } else {
+                    comparison = aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+                }
+                
+                return order === 'desc' ? comparison * -1 : comparison;
+            });
+        }
+
+        function sortTable(sortField) {
+            let newOrder = 'asc';
+            if (currentSort === sortField) {
+                newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                newOrder = 'asc';
+            }
+            
+            currentSort = sortField;
+            currentOrder = newOrder;
+            setSortIndicator(sortField, newOrder);
+            updateRepairsTable();
+        }
+
+        function setSortIndicator(sortField, order) {
+            document.querySelectorAll('.repairs-table th').forEach(th => {
+                th.classList.remove('sorted-asc', 'sorted-desc');
+                th.setAttribute('data-order', '');
+            });
+            
+            const currentTh = document.querySelector(`.repairs-table th[data-sort="${sortField}"]`);
+            if (currentTh) {
+                currentTh.setAttribute('data-order', order);
+                currentTh.classList.add(order === 'asc' ? 'sorted-asc' : 'sorted-desc');
+            }
+        }
+
+        function performSearch(term) {
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            
+            searchTimeout = setTimeout(() => {
+                searchTerm = term.trim();
+                expandedRepairId = null;
+                updateRepairsTable();
+            }, searchDebounceDelay);
+        }
+
+        // ==================== ФАЙЛОВЫЕ ОПЕРАЦИИ ====================
+
+        function saveToFile() {
+            try {
+                const dataStr = JSON.stringify(carData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'text/plain' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `мои_авто_${currentUser?.uid.slice(0, 8)}_${new Date().toISOString().split('T')[0]}.txt`;
+                link.click();
+                showStatus('Данные успешно сохранены в файл!', 'success');
+            } catch (error) {
+                showStatus('Ошибка при сохранении файла: ' + error.message, 'error');
+            }
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            
+            reader.onload = async function(e) {
+                try {
+                    const loadedData = JSON.parse(e.target.result);
+                    
+                    // Объединяем данные
+                    Object.keys(loadedData).forEach(carKey => {
+                        if (!carData[carKey]) {
+                            carData[carKey] = loadedData[carKey];
+                        } else if (loadedData[carKey].repairs) {
+                            loadedData[carKey].repairs.forEach(newRepair => {
+                                const exists = carData[carKey].repairs.some(r => r.id === newRepair.id);
+                                if (!exists) {
+                                    carData[carKey].repairs.push(newRepair);
+                                }
+                            });
+                        }
+                    });
+                    
+                    searchTerm = '';
+                    document.getElementById('searchInput').value = '';
+                    expandedRepairId = null;
+                    
+                    updateCarInfo();
+                    updateRepairsTable();
+                    
+                    const saved = await saveUserData();
+                    showStatus(saved ? 'Данные успешно загружены из файла!' : 'Данные загружены локально', saved ? 'success' : 'warning');
+                } catch (error) {
+                    showStatus('Ошибка при чтении файла: ' + error.message, 'error');
+                }
+            };
+            
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function exportJson() {
+            try {
+                const dataStr = JSON.stringify(carData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `мои_авто_${currentUser?.uid.slice(0, 8)}.json`;
+                link.click();
+                showStatus('Данные успешно экспортированы в JSON!', 'success');
+            } catch (error) {
+                showStatus('Ошибка при экспорте: ' + error.message, 'error');
+            }
+        }
+
+        async function mergeData() {
+            const jsonInput = document.getElementById('jsonInput').value.trim();
+            
+            if (!jsonInput) {
+                showStatus('Введите JSON данные для объединения', 'error');
+                return;
+            }
+            
+            try {
+                const newData = JSON.parse(jsonInput);
+                
+                Object.keys(newData).forEach(carKey => {
+                    if (!carData[carKey]) {
+                        carData[carKey] = {
+                            model: "Неизвестно",
+                            year: 0,
+                            color: "",
+                            totalSpent: 0,
+                            totalRepairs: 0,
+                            lastRepair: "",
+                            repairs: []
+                        };
+                    }
+                    
+                    if (newData[carKey].repairs && Array.isArray(newData[carKey].repairs)) {
+                        newData[carKey].repairs.forEach(newRepair => {
+                            const existingIndex = carData[carKey].repairs.findIndex(r => r.id === newRepair.id);
+                            if (existingIndex !== -1) {
+                                carData[carKey].repairs[existingIndex] = newRepair;
+                            } else {
+                                carData[carKey].repairs.push(newRepair);
+                            }
+                        });
+                    }
+                    
+                    Object.keys(newData[carKey]).forEach(key => {
+                        if (key !== 'repairs' && !Array.isArray(newData[carKey][key])) {
+                            carData[carKey][key] = newData[carKey][key];
+                        }
+                    });
+                });
+                
+                document.getElementById('jsonInput').value = '';
+                updateCarInfo();
+                updateRepairsTable();
+                
+                const saved = await saveUserData();
+                showStatus(saved ? 'Данные успешно объединены!' : 'Данные объединены локально', saved ? 'success' : 'warning');
+            } catch (error) {
+                showStatus('Ошибка при парсинге JSON: ' + error.message, 'error');
+            }
+        }
+
+        function toggleStructure() {
+            const content = document.getElementById('structureContent');
+            const chevron = document.getElementById('structureChevron');
+            const container = document.querySelector('.data-example:last-child');
+            
+            if (content.style.display === 'none' || content.style.display === '') {
+                content.style.display = 'block';
+                content.classList.add('show');
+                chevron.classList.remove('fa-chevron-down');
+                chevron.classList.add('fa-chevron-up');
+                container.classList.remove('structure-collapsed');
+                container.classList.add('structure-expanded');
+            } else {
+                content.style.display = 'none';
+                content.classList.remove('show');
+                chevron.classList.remove('fa-chevron-up');
+                chevron.classList.add('fa-chevron-down');
+                container.classList.remove('structure-expanded');
+                container.classList.add('structure-collapsed');
+            }
+        }
+
+        function updateStructureDisplay() {
+            document.getElementById('currentStructure').textContent = JSON.stringify(carData, null, 2);
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message';
+            statusEl.classList.add(`status-${type}`);
+            
+            setTimeout(() => {
+                statusEl.className = 'status-message';
+            }, 3000);
+        }
+
+    </script>
+</body>
+</html>
