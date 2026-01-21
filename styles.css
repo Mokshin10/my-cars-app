@@ -1010,7 +1010,7 @@ body {
     
     /* Делаем строки блочными и превращаем в карточки */
     .repairs-table tbody tr {
-        display: block;
+        display: grid;
         width: 100% !important;
         max-width: 100vw !important;
         min-width: 78vw !important;
