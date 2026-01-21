@@ -39,14 +39,15 @@ function showAuthModal() {
     const modal = document.getElementById('authModal');
     modal.style.display = 'flex';
     document.getElementById('authStatus').textContent = '';
-    document.getElementById('loginEmail').value = 'Mokshin10@gmail.com';
-    document.getElementById('loginPassword').value = 'Vjriby';
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
 }
 
 function hideAuthModal() {
     const modal = document.getElementById('authModal');
     modal.style.display = 'none';
     isEditingAction = false;
+    editingRepairId = null;
 }
 
 async function loginUser() {
@@ -63,14 +64,19 @@ async function loginUser() {
         currentUser = userCredential.user;
         isGuestMode = false;
         
-        // Загружаем настройки пользователя
         await loadUserSettings();
-        
-        // Обновляем интерфейс
         updateUIForAuthState();
         hideAuthModal();
-        
         showStatus('Успешный вход! Режим редактирования', 'success');
+        
+        // Выполняем отложенное действие редактирования
+        if (isEditingAction) {
+            if (editingRepairId) {
+                openEditForm(editingRepairId);
+            } else {
+                openAddForm();
+            }
+        }
         
     } catch (error) {
         console.error('Ошибка входа:', error);
@@ -86,8 +92,9 @@ function logoutUser() {
     currentUser = null;
     userSettings = null;
     isGuestMode = true;
+    isEditingAction = false;
+    editingRepairId = null;
     
-    // Обновляем интерфейс
     updateUIForAuthState();
     showStatus('Переход в гостевой режим', 'info');
 }
@@ -110,7 +117,6 @@ function updateUIForAuthState() {
     const modeText = document.getElementById('modeText');
     const userInfo = document.getElementById('userInfo');
     
-    // Кнопки управления файлами
     const saveToFileBtn = document.getElementById('saveToFileBtn');
     const loadFromFileBtn = document.getElementById('loadFromFileBtn');
     const exportJsonBtn = document.getElementById('exportJsonBtn');
@@ -119,20 +125,16 @@ function updateUIForAuthState() {
     const addSampleDataBtn = document.getElementById('addSampleDataBtn');
     
     if (isGuestMode) {
-        // Гостевой режим
         if (logoutBtn) logoutBtn.style.display = 'none';
         if (loginBtn) loginBtn.style.display = 'flex';
         if (modeIndicator) {
             modeIndicator.classList.remove('mode-authorized');
             modeIndicator.classList.add('mode-guest');
         }
-        if (modeIcon) {
-            modeIcon.className = 'fas fa-user'; // Иконка пользователя для гостя
-        }
+        if (modeIcon) modeIcon.className = 'fas fa-user';
         if (modeText) modeText.textContent = 'Гость';
         if (userInfo) userInfo.textContent = 'Гостевой доступ';
         
-        // Скрываем кнопки редактирования
         if (saveToFileBtn) saveToFileBtn.style.display = 'none';
         if (loadFromFileBtn) loadFromFileBtn.style.display = 'none';
         if (exportJsonBtn) exportJsonBtn.style.display = 'none';
@@ -140,7 +142,6 @@ function updateUIForAuthState() {
         if (jsonInput) jsonInput.style.display = 'none';
         if (addSampleDataBtn) addSampleDataBtn.style.display = 'none';
         
-        // Обновляем кнопку добавления ремонта
         const addRepairBtn = document.getElementById('addRepairBtn');
         if (addRepairBtn) {
             addRepairBtn.innerHTML = '<i class="fas fa-lock"></i> Войдите для редактирования';
@@ -149,20 +150,16 @@ function updateUIForAuthState() {
         }
         
     } else {
-        // Режим редактирования
         if (logoutBtn) logoutBtn.style.display = 'flex';
         if (loginBtn) loginBtn.style.display = 'none';
         if (modeIndicator) {
             modeIndicator.classList.remove('mode-guest');
             modeIndicator.classList.add('mode-authorized');
         }
-        if (modeIcon) {
-            modeIcon.className = 'fas fa-user-check'; // Иконка с галочкой для авторизованного
-        }
+        if (modeIcon) modeIcon.className = 'fas fa-user-check';
         if (modeText) modeText.textContent = 'Редакт.';
         if (userInfo) userInfo.textContent = `Пользователь: ${currentUser?.email || 'Авторизован'}`;
         
-        // Показываем кнопки редактирования
         if (saveToFileBtn) saveToFileBtn.style.display = 'flex';
         if (loadFromFileBtn) loadFromFileBtn.style.display = 'flex';
         if (exportJsonBtn) exportJsonBtn.style.display = 'flex';
@@ -170,7 +167,6 @@ function updateUIForAuthState() {
         if (jsonInput) jsonInput.style.display = 'block';
         if (addSampleDataBtn) addSampleDataBtn.style.display = 'flex';
         
-        // Обновляем кнопку добавления ремонта
         const addRepairBtn = document.getElementById('addRepairBtn');
         if (addRepairBtn) {
             addRepairBtn.innerHTML = '<i class="fas fa-plus"></i> Добавить ремонт';
@@ -207,18 +203,15 @@ async function loadCarData() {
     try {
         console.log('Загрузка данных автомобилей...');
         
-        // ВСЕГДА загружаем из Firestore
         const carsRef = db.collection('cars');
         const snapshot = await carsRef.get();
         
         if (!snapshot.empty) {
-            // Преобразуем документы в структуру carData
             snapshot.forEach(doc => {
                 const carId = doc.id;
                 const data = doc.data();
                 
                 if (carData[carId]) {
-                    // Обновляем существующие данные
                     Object.assign(carData[carId], data);
                 }
             });
@@ -229,7 +222,6 @@ async function loadCarData() {
             updateCarStatsDisplay();
             return true;
         } else {
-            // Если нет данных в Firestore, создаем начальные
             console.log('Нет данных в Firestore, создаем начальные...');
             await createInitialCarData();
             return true;
@@ -244,7 +236,6 @@ async function loadCarData() {
 
 async function createInitialCarData() {
     try {
-        // Сохраняем начальные данные в Firestore
         for (const [carId, data] of Object.entries(carData)) {
             await db.collection('cars').doc(carId).set(data);
         }
@@ -268,10 +259,7 @@ async function saveCarDataToFirestore() {
         }
         
         console.log('Сохранение данных в Firestore...');
-        
-        // Сохраняем текущий автомобиль
         await db.collection('cars').doc(currentCar).set(carData[currentCar], { merge: true });
-        
         console.log('Данные успешно сохранены');
         return true;
         
@@ -291,7 +279,6 @@ async function saveAllCarDataToFirestore() {
         
         console.log('Сохранение всех данных в Firestore...');
         
-        // Для каждого автомобиля пересчитываем статистику перед сохранением
         Object.keys(carData).forEach(carKey => {
             const car = carData[carKey];
             if (car.repairs && Array.isArray(car.repairs)) {
@@ -307,7 +294,6 @@ async function saveAllCarDataToFirestore() {
             }
         });
         
-        // Сохраняем все автомобили
         for (const [carId, data] of Object.entries(carData)) {
             await db.collection('cars').doc(carId).set(data, { merge: true });
             console.log(`Сохранен автомобиль ${carId}:`, data);
@@ -414,13 +400,9 @@ function loadSavedTheme() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM загружен, инициализация приложения...');
     
-    // Загружаем сохраненную тему
     loadSavedTheme();
-    
-    // Инициализируем приложение
     initApp();
     
-    // Отслеживаем состояние аутентификации
     auth.onAuthStateChanged(async user => {
         console.log('Состояние аутентификации изменено:', user ? user.email : 'Нет пользователя');
         
@@ -429,31 +411,32 @@ document.addEventListener('DOMContentLoaded', function() {
             isGuestMode = false;
             
             console.log('Пользователь авторизован:', user.email);
-            
-            // Загружаем настройки пользователя
             await loadUserSettings();
             
         } else {
             console.log('Гостевой режим');
             currentUser = null;
             isGuestMode = true;
+            isEditingAction = false;
+            editingRepairId = null;
         }
         
-        // Обновляем интерфейс
         updateUIForAuthState();
-        
-        // ВСЕГДА загружаем данные из Firestore
         await loadCarData();
     });
 });
 
 function initApp() {
     console.log('Инициализация приложения...');
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+        console.log('Мобильное устройство обнаружено');
+        document.body.classList.add('is-mobile');
+    }
     
-    // Настраиваем обработчики событий
     setupEventListeners();
     
-    // Восстанавливаем состояние свернутого блока
     const carStatsCollapsed = localStorage.getItem('carStatsCollapsed') === 'true';
     if (carStatsCollapsed) {
         document.getElementById('carStats').classList.add('collapsed');
@@ -466,7 +449,6 @@ function initApp() {
         }
     }
     
-    // Устанавливаем индикатор сортировки
     updateSortButtons();
     
     console.log('Приложение инициализировано');
@@ -475,7 +457,6 @@ function initApp() {
 function setupEventListeners() {
     console.log('Настройка обработчиков событий...');
     
-    // Переключение темы
     document.querySelectorAll('.theme-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -487,7 +468,6 @@ function setupEventListeners() {
         });
     });
     
-    // Кнопки входа/выхода
     document.getElementById('loginBtnMain')?.addEventListener('click', function(e) {
         e.stopPropagation();
         showAuthModal();
@@ -498,7 +478,6 @@ function setupEventListeners() {
         logoutUser();
     });
     
-    // Кнопки модального окна
     document.getElementById('loginBtn')?.addEventListener('click', function(e) {
         e.stopPropagation();
         loginUser();
@@ -509,7 +488,6 @@ function setupEventListeners() {
         hideAuthModal();
     });
     
-    // Выбор автомобиля
     document.querySelectorAll('.car-option').forEach(option => {
         option.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -523,7 +501,6 @@ function setupEventListeners() {
         });
     });
     
-    // Сворачивание блока статистики
     const carInfoToggle = document.getElementById('carInfoToggle');
     if (carInfoToggle) {
         carInfoToggle.addEventListener('click', function(e) {
@@ -544,7 +521,6 @@ function setupEventListeners() {
         });
     }
     
-    // Поиск
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('input', function(e) {
@@ -552,7 +528,6 @@ function setupEventListeners() {
         });
     }
     
-    // Очистка поиска
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     if (clearSearchBtn) {
         clearSearchBtn.addEventListener('click', function(e) {
@@ -563,7 +538,6 @@ function setupEventListeners() {
         });
     }
     
-    // Сортировка карточек
     document.querySelectorAll('.sort-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -573,17 +547,11 @@ function setupEventListeners() {
         });
     });
     
-    // Кнопка добавления ремонта
     document.getElementById('addRepairBtn')?.addEventListener('click', function(e) {
         e.stopPropagation();
-        checkAuthBeforeEdit(function() {
-            document.getElementById('addRepairForm').classList.add('active');
-            document.getElementById('editRepairForm').classList.remove('active');
-            document.getElementById('dataSection').style.display = 'none';
-        });
+        checkAuthBeforeEdit(openAddForm);
     });
     
-    // Кнопки форм ремонта
     document.getElementById('saveRepairBtn')?.addEventListener('click', function(e) {
         e.stopPropagation();
         saveRepair();
@@ -609,7 +577,6 @@ function setupEventListeners() {
         deleteRepair();
     });
     
-    // Кнопки управления файлами
     document.getElementById('saveToFileBtn')?.addEventListener('click', function(e) {
         e.stopPropagation();
         saveToFile();
@@ -635,18 +602,23 @@ function setupEventListeners() {
         mergeData();
     });
     
-    // Загрузка файла
     document.getElementById('fileInput')?.addEventListener('change', function(e) {
         handleFileUpload(e);
     });
     
-    // Сворачивание структуры данных
     document.getElementById('toggleStructureBtn')?.addEventListener('click', function(e) {
         e.stopPropagation();
         toggleStructure();
     });
     
-    // Обработчик закрытия модального окна
+    // Кнопки "Назад к списку ремонтов"
+    document.querySelectorAll('.back-to-list-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            closeAllForms();
+        });
+    });
+    
     const modal = document.getElementById('authModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
@@ -656,14 +628,12 @@ function setupEventListeners() {
         });
     }
     
-    // Закрытие модального окна по ESC
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
             hideAuthModal();
         }
     });
     
-    // Реальная синхронизация: слушаем изменения в Firestore
     db.collection('cars').onSnapshot((snapshot) => {
         console.log('Обнаружены изменения в базе данных');
         
@@ -675,7 +645,6 @@ function setupEventListeners() {
                 if (carData[carId]) {
                     Object.assign(carData[carId], data);
                     
-                    // Если это текущий автомобиль, обновляем интерфейс
                     if (carId === currentCar) {
                         updateCarInfo();
                         updateRepairsCards();
@@ -698,13 +667,9 @@ function updateCarInfo() {
     const car = carData[currentCar];
     if (!car) return;
     
-    // Считаем общее количество ремонтов
     car.totalRepairs = car.repairs ? car.repairs.length : 0;
-    
-    // Считаем общую сумму
     car.totalSpent = car.repairs ? car.repairs.reduce((sum, repair) => sum + (repair.total_price || 0), 0) : 0;
     
-    // Находим последний ремонт
     if (car.repairs && car.repairs.length > 0) {
         const sortedRepairs = [...car.repairs].sort((a, b) => parseDate(b.date) - parseDate(a.date));
         car.lastRepair = sortedRepairs[0].date || '';
@@ -738,7 +703,6 @@ function updateRepairsCards() {
     
     let filteredRepairs = [...(car.repairs || [])];
     
-    // Фильтрация по поиску
     if (searchTerm) {
         const term = searchTerm.toLowerCase();
         filteredRepairs = (car.repairs || []).filter(repair => {
@@ -758,10 +722,8 @@ function updateRepairsCards() {
         });
     }
     
-    // Сортировка
     filteredRepairs = sortRepairs(filteredRepairs, currentSort, currentOrder);
     
-    // Обновление информации о результатах поиска
     if (searchTerm && searchResultsInfo) {
         searchResultsInfo.classList.remove('hidden');
         resultsCount.textContent = filteredRepairs.length;
@@ -770,10 +732,8 @@ function updateRepairsCards() {
         searchResultsInfo.classList.add('hidden');
     }
     
-    // Очистка контейнера
     repairsContainer.innerHTML = '';
     
-    // Если нет ремонтов
     if (filteredRepairs.length === 0) {
         const noRepairsDiv = document.createElement('div');
         noRepairsDiv.className = 'no-repairs';
@@ -785,7 +745,6 @@ function updateRepairsCards() {
         return;
     }
     
-    // Создание карточек
     filteredRepairs.forEach(repair => {
         const isExpanded = expandedRepairId === repair.id;
         
@@ -799,7 +758,6 @@ function updateRepairsCards() {
         const displaySto = repair.sto || 'Не указано';
         const displayPrice = repair.total_price ? repair.total_price.toLocaleString('ru-RU') + ' руб' : '0 руб';
         
-        // Подсветка поиска
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             const highlightText = (text) => {
@@ -844,7 +802,6 @@ function updateRepairsCards() {
         repairsContainer.appendChild(card);
     });
     
-    // Обработчики кнопок редактирования
     setTimeout(() => {
         document.querySelectorAll('.edit-repair-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
@@ -861,7 +818,6 @@ function updateRepairsCards() {
 function renderRepairDetails(repair) {
     let html = '';
     
-    // Работы
     if (repair.work_items && repair.work_items.length > 0) {
         html += `
             <div class="details-section">
@@ -904,7 +860,6 @@ function renderRepairDetails(repair) {
         `;
     }
     
-    // Запчасти
     if (repair.part_items && repair.part_items.length > 0) {
         html += `
             <div class="details-section">
@@ -912,7 +867,6 @@ function renderRepairDetails(repair) {
                     <i class="fas fa-cogs"></i> Запчасти
                 </div>
                 
-                <!-- Десктопная версия (таблица) -->
                 <table class="desktop-parts-table">
                     <thead>
                         <tr>
@@ -952,7 +906,6 @@ function renderRepairDetails(repair) {
                     </tfoot>
                 </table>
                 
-                <!-- Мобильная версия (карточки) -->
                 <div class="parts-list">
         `;
         
@@ -976,7 +929,6 @@ function renderRepairDetails(repair) {
         `;
     }
     
-    // Итог
     html += `
         <div class="details-total">
             <div class="total-label">Общая стоимость ремонта:</div>
@@ -984,7 +936,6 @@ function renderRepairDetails(repair) {
         </div>
     `;
     
-    // Примечания
     if (repair.notes && repair.notes.trim()) {
         html += `
             <div class="details-section">
@@ -998,7 +949,6 @@ function renderRepairDetails(repair) {
         `;
     }
     
-    // Кнопки действий
     html += `
         <div class="repair-actions">
             <button class="btn btn-secondary edit-repair-btn" data-repair-id="${repair.id}">
@@ -1035,7 +985,6 @@ async function saveRepair() {
     
     const repairId = Date.now();
     
-    // Парсим работы
     const workItems = [];
     if (worksText) {
         const lines = worksText.split('\n');
@@ -1058,7 +1007,6 @@ async function saveRepair() {
         });
     }
     
-    // Парсим запчасти
     const partItems = [];
     if (partsText) {
         const lines = partsText.split('\n');
@@ -1138,7 +1086,6 @@ async function updateRepair() {
         return;
     }
     
-    // Парсим работы
     const workItems = [];
     if (worksText) {
         const lines = worksText.split('\n');
@@ -1161,7 +1108,6 @@ async function updateRepair() {
         });
     }
     
-    // Парсим запчасти
     const partItems = [];
     if (partsText) {
         const lines = partsText.split('\n');
@@ -1234,29 +1180,17 @@ async function deleteRepair() {
     showStatus(saved ? 'Ремонт успешно удален!' : 'Ошибка сохранения', saved ? 'success' : 'error');
 }
 
-// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+// ==================== ФОРМЫ И СКРОЛЛИНГ ====================
 
-function closeAllForms() {
-    document.getElementById('addRepairForm').classList.remove('active');
-    document.getElementById('editRepairForm').classList.remove('active');
-    document.getElementById('dataSection').style.display = 'block';
+function openAddForm() {
+    toggleBackButton(true);
     resetAddForm();
-    editingRepairId = null;
-    isEditingAction = false;
-}
-
-function resetAddForm() {
-    const today = new Date();
-    const formattedDate = today.toLocaleDateString('ru-RU').replace(/\//g, '.');
     
-    document.getElementById('repairDate').value = formattedDate;
-    document.getElementById('repairMileage').value = '';
-    document.getElementById('repairShortWork').value = '';
-    document.getElementById('repairSto').value = '';
-    document.getElementById('repairPrice').value = '';
-    document.getElementById('repairWorks').value = '';
-    document.getElementById('repairParts').value = '';
-    document.getElementById('repairNotes').value = '';
+    document.getElementById('addRepairForm').classList.add('active');
+    document.getElementById('editRepairForm').classList.remove('active');
+    document.getElementById('dataSection').style.display = 'none';
+    
+    scrollToForm('addRepairForm');
 }
 
 function openEditForm(repairId) {
@@ -1265,7 +1199,9 @@ function openEditForm(repairId) {
     
     if (!repair) return;
     
+    toggleBackButton(true);
     editingRepairId = repairId;
+    
     document.getElementById('editRepairId').value = repairId;
     document.getElementById('editRepairDate').value = repair.date || '';
     document.getElementById('editRepairMileage').value = repair.mileage || '';
@@ -1291,7 +1227,72 @@ function openEditForm(repairId) {
     document.getElementById('editRepairForm').classList.add('active');
     document.getElementById('addRepairForm').classList.remove('active');
     document.getElementById('dataSection').style.display = 'none';
+    
+    scrollToForm('editRepairForm');
 }
+
+function closeAllForms() {
+    document.getElementById('addRepairForm').classList.remove('active');
+    document.getElementById('editRepairForm').classList.remove('active');
+    document.getElementById('dataSection').style.display = 'block';
+    resetAddForm();
+    editingRepairId = null;
+    isEditingAction = false;
+    toggleBackButton(false);
+    
+    scrollToList();
+}
+
+function resetAddForm() {
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('ru-RU').replace(/\//g, '.');
+    
+    document.getElementById('repairDate').value = formattedDate;
+    document.getElementById('repairMileage').value = '';
+    document.getElementById('repairShortWork').value = '';
+    document.getElementById('repairSto').value = '';
+    document.getElementById('repairPrice').value = '';
+    document.getElementById('repairWorks').value = '';
+    document.getElementById('repairParts').value = '';
+    document.getElementById('repairNotes').value = '';
+}
+
+function toggleBackButton(show) {
+    const backButtons = document.querySelectorAll('.back-to-list-btn');
+    backButtons.forEach(btn => {
+        btn.style.display = show ? 'block' : 'none';
+    });
+}
+
+function scrollToForm(formId) {
+    if (window.innerWidth <= 768) {
+        setTimeout(() => {
+            const form = document.getElementById(formId);
+            if (form) {
+                form.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start'
+                });
+            }
+        }, 100);
+    }
+}
+
+function scrollToList() {
+    if (window.innerWidth <= 768) {
+        setTimeout(() => {
+            const repairsContainer = document.getElementById('repairsContainer');
+            if (repairsContainer) {
+                repairsContainer.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start'
+                });
+            }
+        }, 100);
+    }
+}
+
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 
 function parseDate(dateStr) {
     if (!dateStr) return new Date(0);
@@ -1400,10 +1401,8 @@ function handleFileUpload(e) {
         try {
             const loadedData = JSON.parse(e.target.result);
             
-            // Объединяем данные
             Object.keys(loadedData).forEach(carKey => {
                 if (carData[carKey]) {
-                    // Если ремонты уже есть, добавляем новые
                     if (loadedData[carKey].repairs) {
                         if (!carData[carKey].repairs) {
                             carData[carKey].repairs = [];
@@ -1416,13 +1415,11 @@ function handleFileUpload(e) {
                             }
                         });
                         
-                        // Обновляем статистику
                         if (loadedData[carKey].model) carData[carKey].model = loadedData[carKey].model;
                         if (loadedData[carKey].year) carData[carKey].year = loadedData[carKey].year;
                         if (loadedData[carKey].color) carData[carKey].color = loadedData[carKey].color;
                     }
                 } else {
-                    // Если автомобиля нет, создаем его
                     carData[carKey] = loadedData[carKey];
                 }
             });
@@ -1435,7 +1432,6 @@ function handleFileUpload(e) {
             updateCarInfo();
             updateRepairsCards();
             
-            // Сохраняем данные в Firestore
             const saved = await saveAllCarDataToFirestore();
             showStatus(saved ? 'Данные успешно загружены из файла и сохранены!' : 'Ошибка сохранения', saved ? 'success' : 'error');
         } catch (error) {
@@ -1503,10 +1499,8 @@ async function mergeData() {
         const newData = JSON.parse(jsonText);
         let dataChanged = false;
         
-        // Объединяем данные
         Object.keys(newData).forEach(carKey => {
             if (carData[carKey]) {
-                // Если ремонты уже есть, добавляем новые
                 if (newData[carKey].repairs && Array.isArray(newData[carKey].repairs)) {
                     if (!carData[carKey].repairs) {
                         carData[carKey].repairs = [];
@@ -1514,7 +1508,6 @@ async function mergeData() {
                     
                     let repairsAdded = 0;
                     newData[carKey].repairs.forEach(newRepair => {
-                        // Проверяем по id или по дате+пробегу, если id нет
                         const exists = carData[carKey].repairs.some(r => 
                             r.id === newRepair.id || 
                             (r.date === newRepair.date && r.mileage === newRepair.mileage && r.short_work === newRepair.short_work)
@@ -1531,7 +1524,6 @@ async function mergeData() {
                     }
                 }
                 
-                // Обновляем информацию об автомобиле
                 if (newData[carKey].model) carData[carKey].model = newData[carKey].model;
                 if (newData[carKey].year) carData[carKey].year = newData[carKey].year;
                 if (newData[carKey].color) carData[carKey].color = newData[carKey].color;
@@ -1540,7 +1532,6 @@ async function mergeData() {
                 if (newData[carKey].lastRepair) carData[carKey].lastRepair = newData[carKey].lastRepair;
                 
             } else {
-                // Если автомобиля нет, создаем его
                 carData[carKey] = newData[carKey];
                 dataChanged = true;
                 console.log(`Создан новый автомобиль: ${carKey}`);
@@ -1550,11 +1541,9 @@ async function mergeData() {
         jsonInput.value = '';
         
         if (dataChanged) {
-            // Обновляем статистику для текущего автомобиля
             updateCarInfo();
             updateRepairsCards();
             
-            // Сохраняем данные в Firestore
             const saved = await saveAllCarDataToFirestore();
             showStatus(saved ? 'Данные успешно объединены и сохранены!' : 'Ошибка сохранения', saved ? 'success' : 'error');
         } else {
