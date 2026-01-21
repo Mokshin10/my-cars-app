@@ -1157,7 +1157,7 @@ body {
     
     /* Еще более компактные карточки */
     .repairs-table tbody tr {
-        padding: 14px !important;
+        padding: 14px 14px 14px 0 !important;
     }
     
     .repairs-table tbody tr td:nth-child(3) {
