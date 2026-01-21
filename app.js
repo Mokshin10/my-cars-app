@@ -39,8 +39,8 @@ function showAuthModal() {
     const modal = document.getElementById('authModal');
     modal.style.display = 'flex';
     document.getElementById('authStatus').textContent = '';
-    document.getElementById('loginEmail').value = '';
-    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginEmail').value = 'Mokshin10@gmail.com';
+    document.getElementById('loginPassword').value = 'Vjriby';
 }
 
 function hideAuthModal() {
@@ -795,8 +795,30 @@ function updateRepairsCards() {
             }
             
             const repairId = parseInt(this.getAttribute('data-repair-id'));
-            expandedRepairId = expandedRepairId === repairId ? null : repairId;
-            updateRepairsCards();
+            const wasExpanded = expandedRepairId === repairId;
+            
+            if (wasExpanded) {
+                // Закрываем карточку
+                expandedRepairId = null;
+                updateRepairsCards();
+            } else {
+                // Открываем новую карточку
+                expandedRepairId = repairId;
+                updateRepairsCards();
+                
+                // Скроллим к верхней части новой открытой карточки
+                if (window.innerWidth <= 768) {
+                    setTimeout(() => {
+                        const expandedCard = document.querySelector(`.repair-card[data-repair-id="${repairId}"]`);
+                        if (expandedCard) {
+                            expandedCard.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'start'
+                            });
+                        }
+                    }, 100);
+                }
+            }
         });
         
         repairsContainer.appendChild(card);
