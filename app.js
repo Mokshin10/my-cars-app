@@ -61,16 +61,11 @@ let isGuestMode = true;
 let isEditingAction = false;
 let guestDataLoaded = false;
 
-// Логирование тем
-console.log('=== ТЕМЫ ===');
-console.log('Тема из localStorage при запуске:', localStorage.getItem('myCarsTheme'));
-console.log('Класс body при запуске:', document.body.className);
-
 // ==================== АУТЕНТИФИКАЦИЯ ====================
 
 function showAuthModal() {
     const modal = document.getElementById('authModal');
-    modal.style.display = 'block';
+    modal.style.display = 'flex';
     document.getElementById('authStatus').textContent = '';
     document.getElementById('loginEmail').value = 'Mokshin10@gmail.com';
     document.getElementById('loginPassword').value = 'Vjriby';
@@ -91,39 +86,34 @@ async function loginUser() {
         return;
     }
     
-    // Для тестового аккаунта
-    if (email === 'Mokshin10@gmail.com' && password === 'Vjriby') {
-        try {
-            const userCredential = await auth.signInWithEmailAndPassword(email, password);
-            currentUser = userCredential.user;
-            isGuestMode = false;
-            
-            // Загружаем данные пользователя
-            await loadUserData();
-            
-            // Обновляем интерфейс
-            updateUIForAuthState();
-            hideAuthModal();
-            
-            // Если была попытка редактирования, выполняем действие
-            if (isEditingAction && editingRepairId) {
-                openEditForm(editingRepairId);
-                isEditingAction = false;
-                editingRepairId = null;
-            } else {
-                updateCarInfo();
-                updateRepairsTable();
-                updateCarStatsDisplay();
-            }
-            
-            showStatus('Успешный вход!', 'success');
-            
-        } catch (error) {
-            console.error('Ошибка входа:', error);
-            showStatus(getErrorMessage(error), 'error');
+    try {
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        currentUser = userCredential.user;
+        isGuestMode = false;
+        
+        // Загружаем данные пользователя
+        await loadUserData();
+        
+        // Обновляем интерфейс
+        updateUIForAuthState();
+        hideAuthModal();
+        
+        // Если была попытка редактирования, выполняем действие
+        if (isEditingAction && editingRepairId) {
+            openEditForm(editingRepairId);
+            isEditingAction = false;
+            editingRepairId = null;
+        } else {
+            updateCarInfo();
+            updateRepairsCards();
+            updateCarStatsDisplay();
         }
-    } else {
-        showStatus('Неверный email или пароль', 'error');
+        
+        showStatus('Успешный вход!', 'success');
+        
+    } catch (error) {
+        console.error('Ошибка входа:', error);
+        showStatus(getErrorMessage(error), 'error');
     }
 }
 
@@ -137,7 +127,7 @@ async function createInitialUserData() {
         });
         
         await db.collection('userSettings').doc(currentUser.uid).set({
-            theme: 'arch',
+            theme: localStorage.getItem('myCarsTheme') || 'arch',
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -150,24 +140,21 @@ async function createInitialUserData() {
 }
 
 function logoutUser() {
-    // Если были в гостевом режиме (авторизованы как гость), не выходим из Firebase
-    // чтобы сохранить возможность загружать данные
-    if (!isGuestMode) {
+    if (!isGuestMode && currentUser) {
         auth.signOut();
-        currentUser = null;
-        userSettings = null;
     }
     
+    currentUser = null;
+    userSettings = null;
     isGuestMode = true;
-    updateUIForAuthState();
     
-    // Обновляем данные из гостевого аккаунта
-    loadGuestData().then(() => {
-        updateCarInfo();
-        updateRepairsTable();
-        updateCarStatsDisplay();
-        showStatus('Переход в гостевой режим. Данные загружены.', 'info');
-    });
+    // Обновляем данные
+    updateUIForAuthState();
+    updateCarInfo();
+    updateRepairsCards();
+    updateCarStatsDisplay();
+    
+    showStatus('Переход в гостевой режим', 'info');
 }
 
 function checkAuthBeforeEdit(actionCallback, repairId = null) {
@@ -187,20 +174,79 @@ function updateUIForAuthState() {
     const modeText = document.getElementById('modeText');
     const userInfo = document.getElementById('userInfo');
     
+    // Кнопки управления файлами (скрываем в гостевом режиме)
+    const saveToFileBtn = document.getElementById('saveToFileBtn');
+    const loadFromFileBtn = document.getElementById('loadFromFileBtn');
+    const exportJsonBtn = document.getElementById('exportJsonBtn');
+    const mergeDataBtn = document.getElementById('mergeDataBtn');
+    const jsonInput = document.getElementById('jsonInput');
+    const addSampleDataBtn = document.getElementById('addSampleDataBtn');
+    
     if (isGuestMode) {
-        logoutBtn.style.display = 'none';
-        loginBtn.style.display = 'flex';
-        modeIndicator.classList.remove('mode-authorized');
-        modeIndicator.classList.add('mode-guest');
-        modeText.textContent = 'Гостевой режим (только просмотр)';
-        userInfo.textContent = 'Загружены реальные данные';
+        // Гостевой режим
+        if (logoutBtn) logoutBtn.style.display = 'none';
+        if (loginBtn) loginBtn.style.display = 'flex';
+        if (modeIndicator) {
+            modeIndicator.classList.remove('mode-authorized');
+            modeIndicator.classList.add('mode-guest');
+        }
+        if (modeText) modeText.textContent = 'Гостевой режим (только просмотр)';
+        if (userInfo) userInfo.textContent = 'Только просмотр данных';
+        
+        // Скрываем кнопки управления файлами
+        if (saveToFileBtn) saveToFileBtn.style.display = 'none';
+        if (loadFromFileBtn) loadFromFileBtn.style.display = 'none';
+        if (exportJsonBtn) exportJsonBtn.style.display = 'none';
+        if (mergeDataBtn) mergeDataBtn.style.display = 'none';
+        if (jsonInput) jsonInput.style.display = 'none';
+        if (addSampleDataBtn) addSampleDataBtn.style.display = 'none';
+        
+        // Обновляем заголовок раздела
+        const dataSectionTitle = document.querySelector('#dataSection h2');
+        if (dataSectionTitle) {
+            dataSectionTitle.innerHTML = '<i class="fas fa-file-alt"></i> Данные (только просмотр)';
+        }
+        
+        // Обновляем текст кнопки добавления ремонта
+        const addRepairBtn = document.getElementById('addRepairBtn');
+        if (addRepairBtn) {
+            addRepairBtn.innerHTML = '<i class="fas fa-lock"></i> Войдите для добавления ремонта';
+            addRepairBtn.classList.remove('btn-success');
+            addRepairBtn.classList.add('btn-secondary');
+        }
+        
     } else {
-        logoutBtn.style.display = 'flex';
-        loginBtn.style.display = 'none';
-        modeIndicator.classList.remove('mode-guest');
-        modeIndicator.classList.add('mode-authorized');
-        modeText.textContent = 'Режим редактирования';
-        userInfo.textContent = `Пользователь: ${currentUser?.email || 'Авторизован'}`;
+        // Режим редактирования
+        if (logoutBtn) logoutBtn.style.display = 'flex';
+        if (loginBtn) loginBtn.style.display = 'none';
+        if (modeIndicator) {
+            modeIndicator.classList.remove('mode-guest');
+            modeIndicator.classList.add('mode-authorized');
+        }
+        if (modeText) modeText.textContent = 'Режим редактирования';
+        if (userInfo) userInfo.textContent = `Пользователь: ${currentUser?.email || 'Авторизован'}`;
+        
+        // Показываем кнопки управления файлами
+        if (saveToFileBtn) saveToFileBtn.style.display = 'flex';
+        if (loadFromFileBtn) loadFromFileBtn.style.display = 'flex';
+        if (exportJsonBtn) exportJsonBtn.style.display = 'flex';
+        if (mergeDataBtn) mergeDataBtn.style.display = 'flex';
+        if (jsonInput) jsonInput.style.display = 'block';
+        if (addSampleDataBtn) addSampleDataBtn.style.display = 'flex';
+        
+        // Обновляем заголовок раздела
+        const dataSectionTitle = document.querySelector('#dataSection h2');
+        if (dataSectionTitle) {
+            dataSectionTitle.innerHTML = '<i class="fas fa-file-alt"></i> Управление данными';
+        }
+        
+        // Обновляем текст кнопки добавления ремонта
+        const addRepairBtn = document.getElementById('addRepairBtn');
+        if (addRepairBtn) {
+            addRepairBtn.innerHTML = '<i class="fas fa-plus"></i> Добавить ремонт';
+            addRepairBtn.classList.remove('btn-secondary');
+            addRepairBtn.classList.add('btn-success');
+        }
     }
 }
 
@@ -227,143 +273,60 @@ function getErrorMessage(error) {
 
 // ==================== ЗАГРУЗКА ДАННЫХ ====================
 
-async function loadInitialGuestData() {
+async function loadGuestData() {
     try {
-        // Сначала пробуем загрузить данные из публичной коллекции
-        const publicDataRef = db.collection('publicData').doc('guestAccess');
-        const publicDataDoc = await publicDataRef.get();
+        if (guestDataLoaded) return true;
         
-        if (publicDataDoc.exists) {
-            const data = publicDataDoc.data();
-            if (data.carData) {
-                carData = mergeCarData(carData, data.carData);
-                guestDataLoaded = true;
-                return true;
+        console.log('Загрузка гостевых данных...');
+        
+        // Пробуем загрузить из публичной коллекции
+        try {
+            const publicDataRef = db.collection('publicData').doc('guestAccess');
+            const publicDataDoc = await publicDataRef.get();
+            
+            if (publicDataDoc.exists) {
+                const data = publicDataDoc.data();
+                if (data.carData) {
+                    carData = mergeCarData(carData, data.carData);
+                    guestDataLoaded = true;
+                    console.log('Гостевые данные загружены из Firebase');
+                    return true;
+                }
             }
+        } catch (error) {
+            console.warn('Не удалось загрузить гостевые данные из Firebase:', error);
         }
         
-        // Если нет публичных данных, используем локальные данные
+        // Если нет данных в Firebase, используем локальные
         const localData = localStorage.getItem('myCarsGuestData');
         if (localData) {
             try {
                 const parsedData = JSON.parse(localData);
                 carData = mergeCarData(carData, parsedData);
                 guestDataLoaded = true;
+                console.log('Гостевые данные загружены из localStorage');
                 return true;
             } catch (e) {
                 console.error('Ошибка парсинга локальных данных:', e);
             }
         }
         
-        // Если совсем нет данных, используем встроенные примеры
-        if (!guestDataLoaded) {
-            // Добавляем пример данных для Пежо
-            if (samplePeugeotData.peugeot && samplePeugeotData.peugeot.repairs) {
-                samplePeugeotData.peugeot.repairs.forEach(repair => {
-                    repair.id = Date.now() + Math.floor(Math.random() * 1000);
-                    if (!carData.peugeot.repairs.some(r => r.short_work === repair.short_work)) {
-                        carData.peugeot.repairs.push(repair);
-                    }
-                });
-                guestDataLoaded = true;
-            }
+        // Если все еще нет данных, добавляем пример
+        if (!guestDataLoaded && samplePeugeotData.peugeot && samplePeugeotData.peugeot.repairs) {
+            samplePeugeotData.peugeot.repairs.forEach(repair => {
+                repair.id = Date.now() + Math.floor(Math.random() * 1000);
+                if (!carData.peugeot.repairs.some(r => r.short_work === repair.short_work)) {
+                    carData.peugeot.repairs.push(repair);
+                }
+            });
+            guestDataLoaded = true;
+            console.log('Использованы примерные данные');
         }
         
         return guestDataLoaded;
+        
     } catch (error) {
         console.error('Ошибка загрузки гостевых данных:', error);
-        return false;
-    }
-}
-
-async function loadGuestData() {
-    try {
-        if (guestDataLoaded) return true;
-        
-        console.log('Загрузка гостевых данных напрямую из аккаунта...');
-        
-        // Креденшалы для гостевого доступа (только чтение)
-        const guestEmail = 'Mokshin10@gmail.com';
-        const guestPassword = 'Vjriby';
-        
-        try {
-            // Входим в аккаунт для загрузки данных
-            await auth.signInWithEmailAndPassword(guestEmail, guestPassword);
-            const tempUser = auth.currentUser;
-            
-            if (tempUser) {
-                console.log('Гостевая авторизация успешна, загружаем данные...');
-                
-                // Загружаем данные пользователя
-                const userCarsRef = db.collection('userCars').doc(tempUser.uid);
-                const userCarsDoc = await userCarsRef.get();
-                
-                if (userCarsDoc.exists) {
-                    const data = userCarsDoc.data();
-                    if (data.carData) {
-                        console.log('Данные успешно загружены из аккаунта');
-                        
-                        // ПОЛНОСТЬЮ заменяем текущие данные на данные из аккаунта
-                        // Это важно - чтобы не было остатков от демо-данных
-                        carData = JSON.parse(JSON.stringify(data.carData));
-                        
-                        // Убеждаемся, что все поля есть
-                        ['focus', 'peugeot'].forEach(carKey => {
-                            if (carData[carKey]) {
-                                // Убеждаемся, что есть все обязательные поля
-                                if (!carData[carKey].repairs) carData[carKey].repars = [];
-                                if (!carData[carKey].model) carData[carKey].model = carKey === 'focus' ? 'Ford Focus 3' : 'Peugeot 207';
-                                if (!carData[carKey].year) carData[carKey].year = carKey === 'focus' ? 2012 : 2008;
-                                if (!carData[carKey].color) carData[carKey].color = carKey === 'focus' ? 'Серебристый' : 'Синий';
-                                if (!carData[carKey].totalSpent) carData[carKey].totalSpent = 0;
-                                if (!carData[carKey].totalRepairs) carData[carKey].totalRepairs = 0;
-                                if (!carData[carKey].lastRepair) carData[carKey].lastRepair = '';
-                            }
-                        });
-                        
-                        // Обновляем текущий автомобиль если нужно
-                        if (!carData[currentCar]) {
-                            currentCar = Object.keys(carData)[0] || 'focus';
-                        }
-                        
-                        guestDataLoaded = true;
-                        console.log('carData после загрузки:', {
-                            focus: { repairs: carData.focus?.repairs?.length || 0 },
-                            peugeot: { repairs: carData.peugeot?.repairs?.length || 0 }
-                        });
-                    } else {
-                        console.error('carData не найдено в документе пользователя');
-                    }
-                } else {
-                    console.error('Документ пользователя не найден');
-                }
-                
-                // НЕ ВЫХОДИМ из аккаунта сразу - оставляем авторизованным
-                // для возможности обновления данных в реальном времени
-                console.log('Остаемся в гостевой авторизации для обновления данных');
-                
-            } else {
-                console.error('Не удалось войти в гостевой аккаунт');
-            }
-            
-        } catch (authError) {
-            console.error('Ошибка гостевой авторизации:', authError);
-            // При ошибке аутентификации используем базовую структуру
-            resetToBasicStructure();
-        }
-        
-        // Если все еще не загружено, сбрасываем
-        if (!guestDataLoaded) {
-            resetToBasicStructure();
-        }
-        
-        guestDataLoaded = true;
-        return true;
-        
-    } catch (error) {
-        console.error('Критическая ошибка загрузки гостевых данных:', error);
-        resetToBasicStructure();
-        guestDataLoaded = true;
         return false;
     }
 }
@@ -402,23 +365,11 @@ async function loadUserData() {
         
         if (settingsDoc.exists) {
             userSettings = settingsDoc.data();
-            
-            // Проверяем приоритет тем:
-            // 1. Сначала пробуем загрузить тему из localStorage (текущая сессия)
-            const localStorageTheme = localStorage.getItem('myCarsTheme');
-            
-            if (localStorageTheme && localStorageTheme !== userSettings.theme) {
-                // Если в localStorage другая тема, чем в настройках пользователя
-                // Обновляем настройки пользователя под текущую тему
-                userSettings.theme = localStorageTheme;
-                await saveUserSettings();
-                switchTheme(localStorageTheme, false);
-            } else if (userSettings.theme) {
-                // Иначе используем тему из настроек пользователя
+            if (userSettings.theme) {
                 switchTheme(userSettings.theme, false);
             }
         } else {
-            // Если настроек нет, создаем их с темой из localStorage
+            // Если настроек нет, создаем их
             const savedTheme = localStorage.getItem('myCarsTheme') || 'arch';
             userSettings = { theme: savedTheme };
             await saveUserSettings();
@@ -434,25 +385,20 @@ async function loadUserData() {
             if (data.carData) {
                 carData = mergeCarData(carData, data.carData);
             }
-            
-            // Обновляем UI
-            updateCarInfo();
-            updateRepairsTable();
-            updateCarStatsDisplay();
-            
-            return true;
         } else {
             // Создаем начальные данные для нового пользователя
             await createInitialUserData();
-            return true;
         }
+        
+        // Обновляем UI
+        updateCarInfo();
+        updateRepairsCards();
+        updateCarStatsDisplay();
+        
+        return true;
         
     } catch (error) {
         console.error('Ошибка загрузки данных пользователя:', error);
-        // При ошибке используем тему из localStorage
-        const savedTheme = localStorage.getItem('myCarsTheme') || 'arch';
-        switchTheme(savedTheme, false);
-        
         showStatus('Ошибка загрузки данных', 'error');
         return false;
     }
@@ -499,9 +445,6 @@ async function saveCarData() {
             return false;
         }
         
-        console.log('Сохранение данных в Firebase...');
-        
-        // Сохраняем только в Firebase
         await db.collection('userCars').doc(currentUser.uid).set({
             email: currentUser.email,
             carData: carData,
@@ -521,20 +464,14 @@ async function saveCarData() {
 // ==================== УПРАВЛЕНИЕ ТЕМОЙ ====================
 
 function switchTheme(theme, saveToServer = true) {
-    // Проверяем допустимость темы
     const validThemes = ['arch', 'rosepine'];
     if (!validThemes.includes(theme)) {
-        console.warn(`Неизвестная тема: ${theme}, устанавливаю arch`);
         theme = 'arch';
     }
     
-    // Удаляем текущие классы тем
     document.body.classList.remove('theme-arch', 'theme-rosepine');
-    
-    // Добавляем новый класс темы
     document.body.classList.add(`theme-${theme}`);
     
-    // Обновляем активную кнопку темы
     document.querySelectorAll('.theme-btn').forEach(btn => {
         btn.classList.remove('active');
     });
@@ -543,54 +480,40 @@ function switchTheme(theme, saveToServer = true) {
     if (themeBtn) {
         themeBtn.classList.add('active');
     } else {
-        // Если кнопка не найдена, активируем Arch
         const archBtn = document.querySelector('.theme-btn[data-theme="arch"]');
         if (archBtn) archBtn.classList.add('active');
     }
     
-    // Обновляем текст футера
     const themeName = theme === 'arch' ? 'Arch Linux' : 'Rosé Pine';
     const themeNameEl = document.getElementById('themeName');
     if (themeNameEl) {
         themeNameEl.textContent = themeName;
     }
     
-    // Всегда сохраняем в localStorage (для гостевого и авторизованного режима)
     localStorage.setItem('myCarsTheme', theme);
-    console.log('Тема сохранена в localStorage:', theme);
     
-    // Сохраняем в настройках пользователя если авторизован
     if (!isGuestMode && userSettings && saveToServer) {
         userSettings.theme = theme;
         saveUserSettings();
-        console.log('Тема сохранена в настройках пользователя');
     }
 }
 
 function loadSavedTheme() {
     try {
         const savedTheme = localStorage.getItem('myCarsTheme');
-        
-        // Допустимые темы
         const validThemes = ['arch', 'rosepine'];
         
-        // Определяем тему для загрузки
-        let themeToLoad = 'arch'; // По умолчанию Arch
-        
+        let themeToLoad = 'arch';
         if (savedTheme && validThemes.includes(savedTheme)) {
             themeToLoad = savedTheme;
         } else {
-            // Если тема не сохранена или некорректна, сохраняем Arch
-            themeToLoad = 'arch';
             localStorage.setItem('myCarsTheme', 'arch');
         }
         
-        console.log('Загружаем тему из localStorage:', themeToLoad);
         switchTheme(themeToLoad, false);
         
     } catch (error) {
         console.error('Ошибка загрузки темы:', error);
-        // Устанавливаем тему Arch по умолчанию
         document.body.classList.add('theme-arch');
         localStorage.setItem('myCarsTheme', 'arch');
     }
@@ -612,7 +535,9 @@ async function saveUserSettings() {
 // ==================== ОСНОВНАЯ ЛОГИКА ====================
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Загружаем сохраненную тему ПЕРВЫМ делом
+    console.log('DOM загружен, инициализация приложения...');
+    
+    // Загружаем сохраненную тему
     loadSavedTheme();
     
     // Инициализируем приложение
@@ -620,13 +545,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Отслеживаем состояние аутентификации
     auth.onAuthStateChanged(async user => {
-    if (user) {
-        // Если это ваш основной аккаунт (по email)
-        if (user.email === 'Mokshin10@gmail.com') {
+        console.log('Состояние аутентификации изменено:', user ? user.email : 'Нет пользователя');
+        
+        if (user) {
             currentUser = user;
             isGuestMode = false;
             
-            console.log('Основной пользователь вошел:', user.email);
+            console.log('Пользователь авторизован:', user.email);
             
             // Загружаем данные пользователя
             await loadUserData();
@@ -634,48 +559,28 @@ document.addEventListener('DOMContentLoaded', function() {
             // Обновляем интерфейс
             updateUIForAuthState();
             updateCarInfo();
-            updateRepairsTable();
+            updateRepairsCards();
             updateCarStatsDisplay();
             
         } else {
-            // Если это гостевая авторизация
-            console.log('Гостевая авторизация активна');
-            isGuestMode = true;
+            console.log('Пользователь не авторизован, гостевой режим');
             currentUser = null;
+            isGuestMode = true;
             
             // Загружаем гостевые данные
-            if (!guestDataLoaded) {
-                await loadGuestData();
-                updateCarInfo();
-                updateRepairsTable();
-                updateCarStatsDisplay();
-            }
+            await loadGuestData();
             
+            // Обновляем интерфейс
             updateUIForAuthState();
+            updateCarInfo();
+            updateRepairsCards();
+            updateCarStatsDisplay();
         }
-        
-    } else {
-        // Если никто не авторизован - автоматически входим в гостевой режим
-        console.log('Нет авторизации, пытаемся войти как гость...');
-        isGuestMode = true;
-        currentUser = null;
-        
-        try {
-            // Пробуем войти как гость
-            await auth.signInWithEmailAndPassword('Mokshin10@gmail.com', 'Vjriby');
-            // После успешного входа сработает onAuthStateChanged снова
-        } catch (error) {
-            console.error('Не удалось войти в гостевой режим:', error);
-            // При ошибке просто показываем интерфейс
-            updateUIForAuthState();
-        }
-    }
-});
+    });
 });
 
 async function initApp() {
-    // Загружаем сохраненную тему ПЕРВЫМ делом
-    loadSavedTheme();
+    console.log('Инициализация приложения...');
     
     // Настраиваем обработчики событий
     setupEventListeners();
@@ -693,52 +598,59 @@ async function initApp() {
         }
     }
     
-    // Инициализируем UI
-    updateUIForAuthState();
-    
     // Устанавливаем индикатор сортировки
-    setSortIndicator('date', 'desc');
+    updateSortButtons();
     
-    // Данные загружаются автоматически через auth.onAuthStateChanged
-    console.log('Приложение инициализировано, ожидание загрузки данных...');
+    console.log('Приложение инициализировано');
 }
 
 function setupEventListeners() {
+    console.log('Настройка обработчиков событий...');
+    
     // Переключение темы
     document.querySelectorAll('.theme-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
             const theme = this.getAttribute('data-theme');
-            console.log('Пользователь выбрал тему:', theme);
-            
-            // Сохраняем тему в localStorage сразу
             localStorage.setItem('myCarsTheme', theme);
-            
-            // Применяем тему
             switchTheme(theme);
-            
-            // Показываем статус
             const themeName = theme === 'arch' ? 'Arch Linux' : 'Rosé Pine';
             showStatus(`Тема изменена на ${themeName}`, 'success');
         });
     });
     
     // Кнопки входа/выхода
-    document.getElementById('loginBtnMain')?.addEventListener('click', showAuthModal);
-    document.getElementById('logoutBtn')?.addEventListener('click', logoutUser);
+    document.getElementById('loginBtnMain')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        showAuthModal();
+    });
+    
+    document.getElementById('logoutBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        logoutUser();
+    });
     
     // Кнопки модального окна
-    document.getElementById('loginBtn')?.addEventListener('click', loginUser);
-    document.getElementById('cancelAuthBtn')?.addEventListener('click', hideAuthModal);
+    document.getElementById('loginBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        loginUser();
+    });
+    
+    document.getElementById('cancelAuthBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        hideAuthModal();
+    });
     
     // Выбор автомобиля
     document.querySelectorAll('.car-option').forEach(option => {
-        option.addEventListener('click', function() {
+        option.addEventListener('click', function(e) {
+            e.stopPropagation();
             document.querySelectorAll('.car-option').forEach(o => o.classList.remove('active'));
             this.classList.add('active');
             currentCar = this.getAttribute('data-car');
             expandedRepairId = null;
             updateCarInfo();
-            updateRepairsTable();
+            updateRepairsCards();
             updateCarStatsDisplay();
         });
     });
@@ -746,7 +658,8 @@ function setupEventListeners() {
     // Сворачивание блока статистики
     const carInfoToggle = document.getElementById('carInfoToggle');
     if (carInfoToggle) {
-        carInfoToggle.addEventListener('click', function() {
+        carInfoToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
             const carStats = document.getElementById('carStats');
             const isCollapsed = carStats.classList.contains('collapsed');
             const icon = this.querySelector('.fa-chevron-down');
@@ -766,7 +679,7 @@ function setupEventListeners() {
     // Поиск
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
-        searchInput.addEventListener('input', function() {
+        searchInput.addEventListener('input', function(e) {
             performSearch(this.value);
         });
     }
@@ -774,23 +687,27 @@ function setupEventListeners() {
     // Очистка поиска
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     if (clearSearchBtn) {
-        clearSearchBtn.addEventListener('click', function() {
+        clearSearchBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
             searchInput.value = '';
             searchTerm = '';
-            updateRepairsTable();
+            updateRepairsCards();
         });
     }
     
-    // Сортировка таблицы
-    document.querySelectorAll('.repairs-table th[data-sort]').forEach(th => {
-        th.addEventListener('click', function() {
+    // Сортировка карточек
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
             const sortField = this.getAttribute('data-sort');
-            sortTable(sortField);
+            const sortOrder = this.getAttribute('data-order');
+            sortRepairsCards(sortField, sortOrder);
         });
     });
     
-    // Кнопки управления ремонтами
-    document.getElementById('addRepairBtn')?.addEventListener('click', function() {
+    // Кнопка добавления ремонта (с проверкой авторизации)
+    document.getElementById('addRepairBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
         if (isGuestMode) {
             showAuthModal();
             return;
@@ -800,29 +717,107 @@ function setupEventListeners() {
         document.getElementById('dataSection').style.display = 'none';
     });
     
-    document.getElementById('saveRepairBtn')?.addEventListener('click', saveRepair);
-    document.getElementById('cancelRepairBtn')?.addEventListener('click', closeAllForms);
-    document.getElementById('updateRepairBtn')?.addEventListener('click', updateRepair);
-    document.getElementById('cancelEditBtn')?.addEventListener('click', closeAllForms);
-    document.getElementById('deleteRepairBtn')?.addEventListener('click', deleteRepair);
+    // Кнопки форм ремонта
+    document.getElementById('saveRepairBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        saveRepair();
+    });
     
-    // Работа с файлами
-    document.getElementById('saveToFileBtn')?.addEventListener('click', saveToFile);
-    document.getElementById('loadFromFileBtn')?.addEventListener('click', function() {
+    document.getElementById('cancelRepairBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeAllForms();
+    });
+    
+    document.getElementById('updateRepairBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        updateRepair();
+    });
+    
+    document.getElementById('cancelEditBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeAllForms();
+    });
+    
+    document.getElementById('deleteRepairBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        deleteRepair();
+    });
+    
+    // Кнопки управления файлами (только для авторизованных)
+    document.getElementById('saveToFileBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (isGuestMode) {
+            showAuthModal();
+            return;
+        }
+        saveToFile();
+    });
+    
+    document.getElementById('loadFromFileBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (isGuestMode) {
+            showAuthModal();
+            return;
+        }
         document.getElementById('fileInput').click();
     });
-    document.getElementById('exportJsonBtn')?.addEventListener('click', exportJson);
-    document.getElementById('addSampleDataBtn')?.addEventListener('click', addSampleData);
-    document.getElementById('mergeDataBtn')?.addEventListener('click', mergeData);
+    
+    document.getElementById('exportJsonBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (isGuestMode) {
+            showAuthModal();
+            return;
+        }
+        exportJson();
+    });
+    
+    document.getElementById('addSampleDataBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (isGuestMode) {
+            showAuthModal();
+            return;
+        }
+        addSampleData();
+    });
+    
+    document.getElementById('mergeDataBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (isGuestMode) {
+            showAuthModal();
+            return;
+        }
+        mergeData();
+    });
     
     // Загрузка файла
-    document.getElementById('fileInput')?.addEventListener('change', handleFileUpload);
+    document.getElementById('fileInput')?.addEventListener('change', function(e) {
+        handleFileUpload(e);
+    });
     
     // Сворачивание структуры данных
-    const toggleStructureBtn = document.getElementById('toggleStructureBtn');
-    if (toggleStructureBtn) {
-        toggleStructureBtn.addEventListener('click', toggleStructure);
+    document.getElementById('toggleStructureBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleStructure();
+    });
+    
+    // Обработчик закрытия модального окна при клике вне его
+    const modal = document.getElementById('authModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                hideAuthModal();
+            }
+        });
     }
+    
+    // Закрытие модального окна по ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+            hideAuthModal();
+        }
+    });
+    
+    console.log('Обработчики событий настроены');
 }
 
 // ==================== ФУНКЦИИ РЕМОНТОВ ====================
@@ -841,7 +836,10 @@ function updateCarInfo() {
         car.lastRepair = '';
     }
     
-    saveCarData();
+    if (!isGuestMode) {
+        saveCarData();
+    }
+    
     updateCarStatsDisplay();
 }
 
@@ -857,17 +855,18 @@ function updateCarStatsDisplay() {
     document.getElementById('lastRepair').textContent = car.lastRepair || 'Нет данных';
 }
 
-function updateRepairsTable() {
+function updateRepairsCards() {
     const car = carData[currentCar];
-    const repairsBody = document.getElementById('repairsBody');
+    const repairsContainer = document.getElementById('repairsContainer');
     const searchResultsInfo = document.getElementById('searchResultsInfo');
     const resultsCount = document.getElementById('resultsCount');
     const currentSearchTerm = document.getElementById('currentSearchTerm');
     
-    if (!car || !repairsBody) return;
+    if (!car || !repairsContainer) return;
     
     let filteredRepairs = [...(car.repairs || [])];
     
+    // Фильтрация по поиску
     if (searchTerm) {
         const term = searchTerm.toLowerCase();
         filteredRepairs = (car.repairs || []).filter(repair => {
@@ -887,8 +886,10 @@ function updateRepairsTable() {
         });
     }
     
+    // Сортировка
     filteredRepairs = sortRepairs(filteredRepairs, currentSort, currentOrder);
     
+    // Обновление информации о результатах поиска
     if (searchTerm && searchResultsInfo) {
         searchResultsInfo.classList.remove('hidden');
         resultsCount.textContent = filteredRepairs.length;
@@ -897,125 +898,82 @@ function updateRepairsTable() {
         searchResultsInfo.classList.add('hidden');
     }
     
+    // Очистка контейнера
+    repairsContainer.innerHTML = '';
+    
+    // Если нет ремонтов
     if (filteredRepairs.length === 0) {
-        repairsBody.innerHTML = `
-            <tr>
-                <td colspan="5" class="no-results">
-                    ${searchTerm ? 'По запросу "' + searchTerm + '" ничего не найдено' : 'Нет данных о ремонтах'}
-                </td>
-            </tr>
+        const noRepairsDiv = document.createElement('div');
+        noRepairsDiv.className = 'no-repairs';
+        noRepairsDiv.innerHTML = `
+            <i class="fas fa-tools"></i>
+            <p>${searchTerm ? `По запросу "${searchTerm}" ничего не найдено` : 'Нет данных о ремонтах'}</p>
         `;
+        repairsContainer.appendChild(noRepairsDiv);
         return;
     }
     
-    const isMobile = window.innerWidth <= 768;
-    
-    repairsBody.innerHTML = filteredRepairs.map(repair => {
+    // Создание карточек
+    filteredRepairs.forEach(repair => {
         const isExpanded = expandedRepairId === repair.id;
         
-        // Форматирование данных
-        let displayDate = repair.date || '';
-        let displayMileage = repair.mileage ? repair.mileage.toLocaleString('ru-RU') : '';
-        let displayWork = repair.short_work || 'Ремонтные работы';
-        let displaySto = repair.sto || '';
-        let displayPrice = repair.total_price ? repair.total_price.toLocaleString('ru-RU') : '0';
+        // Создаем карточку
+        const card = document.createElement('div');
+        card.className = `repair-card ${isExpanded ? 'expanded' : ''}`;
+        card.setAttribute('data-repair-id', repair.id);
         
-        if (isMobile) {
-            // Для мобильных: дата в формате дд.мм.гг
-            if (displayDate) {
-                const match = displayDate.match(/(\d{2})\.(\d{2})\.(\d{4})/);
-                if (match) {
-                    displayDate = `${match[1]}.${match[2]}.${match[3].slice(2)}`;
-                }
-            }
-            
-            // Подсветка поиска
-            if (searchTerm) {
-                const term = searchTerm.toLowerCase();
-                const highlightText = (text) => {
-                    if (!text) return '';
-                    const regex = new RegExp(`(${term})`, 'gi');
-                    return text.replace(regex, '<span class="highlight">$1</span>');
-                };
-                displayWork = highlightText(repair.short_work || 'Ремонтные работы');
-                displaySto = highlightText(repair.sto || '');
-            }
-            
-            // МОБИЛЬНАЯ ВЕРСИЯ - улучшенные карточки
-            return `
-                <tr class="${isExpanded ? 'expanded' : ''}" data-repair-id="${repair.id}">
-                    <td>
-                        <div class="mobile-repair-card">
-                            <div class="mobile-repair-header">
-                                <span class="mobile-repair-date">${displayDate}</span>
-                                <span class="mobile-repair-mileage">${displayMileage} км</span>
-                            </div>
-                            <div class="repair-part">${displayWork}</div>
-                            <div class="mobile-repair-info">
-                                <div class="repair-sto">
-                                    <i class="fas fa-warehouse"></i> ${displaySto || 'Не указано'}
-                                </div>
-                                <div class="repair-price">${displayPrice} руб</div>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-                ${isExpanded ? `
-                <tr id="details-${repair.id}" class="repair-details-row">
-                    <td colspan="1">
-                        <div class="repair-details active" id="repair-details-${repair.id}">
-                            ${renderRepairDetails(repair)}
-                        </div>
-                    </td>
-                </tr>
-                ` : ''}
-            `;
-        } else {
-            // ДЕСКТОПНАЯ ВЕРСИЯ - обычная таблица
-            if (searchTerm) {
-                const term = searchTerm.toLowerCase();
-                const highlightText = (text) => {
-                    if (!text) return '';
-                    const regex = new RegExp(`(${term})`, 'gi');
-                    return text.replace(regex, '<span class="highlight">$1</span>');
-                };
-                displayWork = highlightText(repair.short_work || 'Ремонтные работы');
-                displaySto = highlightText(repair.sto || '');
-            }
-            
-            return `
-                <tr class="${isExpanded ? 'expanded' : ''}" data-repair-id="${repair.id}">
-                    <td>${displayDate}</td>
-                    <td>${displayMileage}</td>
-                    <td>
-                        <div class="repair-part">${displayWork}</div>
-                    </td>
-                    <td class="repair-sto">${displaySto}</td>
-                    <td class="repair-price">${displayPrice} руб</td>
-                </tr>
-                ${isExpanded ? `
-                <tr id="details-${repair.id}" class="repair-details-row">
-                    <td colspan="5">
-                        <div class="repair-details active" id="repair-details-${repair.id}">
-                            ${renderRepairDetails(repair)}
-                        </div>
-                    </td>
-                </tr>
-                ` : ''}
-            `;
+        // Форматирование данных
+        const displayDate = repair.date || '';
+        const displayMileage = repair.mileage ? repair.mileage.toLocaleString('ru-RU') + ' км' : '';
+        let displayWork = repair.short_work || 'Ремонтные работы';
+        const displaySto = repair.sto || 'Не указано';
+        const displayPrice = repair.total_price ? repair.total_price.toLocaleString('ru-RU') + ' руб' : '0 руб';
+        
+        // Подсветка поиска
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            const highlightText = (text) => {
+                if (!text) return '';
+                const regex = new RegExp(`(${term})`, 'gi');
+                return text.replace(regex, '<span class="highlight">$1</span>');
+            };
+            displayWork = highlightText(displayWork);
         }
-    }).join('');
-    
-    // Обработчики кликов на строки
-    document.querySelectorAll('.repairs-table tr[data-repair-id]').forEach(row => {
-        row.addEventListener('click', function(e) {
-            if (e.target.tagName === 'TH' || e.target.closest('th')) return;
-            if (e.target.closest('.edit-repair-btn')) return;
+        
+        // Содержимое карточки
+        card.innerHTML = `
+            <div class="repair-card-header">
+                <div class="repair-card-date">${displayDate}</div>
+                <div class="repair-card-mileage">${displayMileage}</div>
+            </div>
+            <div class="repair-card-work">${displayWork}</div>
+            <div class="repair-card-footer">
+                <div class="repair-card-sto">
+                    <i class="fas fa-warehouse"></i> ${displaySto}
+                </div>
+                <div class="repair-card-price">${displayPrice}</div>
+            </div>
+            ${isExpanded ? `
+            <div class="repair-card-details">
+                ${renderRepairDetails(repair)}
+            </div>
+            ` : ''}
+        `;
+        
+        // Обработчик клика на карточку
+        card.addEventListener('click', function(e) {
+            if (e.target.closest('.edit-repair-btn') || 
+                e.target.closest('.repair-card-details') ||
+                e.target.closest('.repair-actions')) {
+                return;
+            }
             
             const repairId = parseInt(this.getAttribute('data-repair-id'));
             expandedRepairId = expandedRepairId === repairId ? null : repairId;
-            updateRepairsTable();
+            updateRepairsCards();
         });
+        
+        repairsContainer.appendChild(card);
     });
     
     // Обработчики кнопок редактирования с проверкой авторизации
@@ -1044,11 +1002,11 @@ function renderRepairDetails(repair) {
         const worksTotal = repair.work_items.reduce((sum, item) => sum + (item.price || 0), 0);
         
         detailsHtml += `
-            <table class="details-table">
+            <table class="works-table">
                 <thead>
                     <tr>
-                        <th style="min-width: 180px;">Наименование работы</th>
-                        <th style="min-width: 100px; white-space: nowrap;">Стоимость</th>
+                        <th>Наименование работы</th>
+                        <th style="text-align: right; white-space: nowrap;">Стоимость</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1061,8 +1019,8 @@ function renderRepairDetails(repair) {
                         <div style="font-weight: 500;">${item.name || ''}</div>
                         ${item.note ? `<div style="color: var(--warning); font-size: 11px; margin-top: 3px;">${item.note}</div>` : ''}
                     </td>
-                    <td style="text-align: right; white-space: nowrap;">
-                        <div class="work-price" style="font-weight: 600; font-size: 13px;">
+                    <td style="text-align: right;">
+                        <div class="work-price">
                             ${item.price ? item.price.toLocaleString('ru-RU') : '0'} руб
                         </div>
                     </td>
@@ -1074,10 +1032,10 @@ function renderRepairDetails(repair) {
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td style="text-align: right; font-weight: 600; padding-top: 10px; border-top: 1px solid var(--border);">
+                        <td style="text-align: right; font-weight: 600;">
                             Итого работ:
                         </td>
-                        <td style="text-align: right; font-weight: 600; padding-top: 10px; border-top: 1px solid var(--border); white-space: nowrap;">
+                        <td style="text-align: right; font-weight: 600;">
                             ${worksTotal.toLocaleString('ru-RU')} руб
                         </td>
                     </tr>
@@ -1099,7 +1057,7 @@ function renderRepairDetails(repair) {
             return sum + (item.price || 0) * quantity;
         }, 0);
         
-        // Проверяем, есть ли данные в столбцах
+        // Десктопная версия (таблица)
         const hasManufacturer = repair.part_items.some(item => 
             item.manufacturer && item.manufacturer.trim() !== ''
         );
@@ -1114,15 +1072,16 @@ function renderRepairDetails(repair) {
         );
         
         detailsHtml += `
-            <table class="details-table" style="width: 100%; table-layout: auto;">
+            <!-- Десктопная версия (скрыта на мобильных) -->
+            <table class="desktop-parts-table">
                 <thead>
                     <tr>
-                        <th style="min-width: 150px; word-break: break-word;">Наименование</th>
-                        ${hasManufacturer ? '<th style="min-width: 90px; max-width: 120px;">Производитель</th>' : ''}
-                        ${hasArticle ? '<th style="min-width: 70px; max-width: 100px;">Артикул</th>' : ''}
+                        <th>Наименование</th>
+                        ${hasManufacturer ? '<th style="min-width: 90px;">Производитель</th>' : ''}
+                        ${hasArticle ? '<th style="min-width: 70px;">Артикул</th>' : ''}
                         ${hasQuantity ? '<th style="width: 60px; text-align: center;">Кол-во</th>' : ''}
-                        <th style="min-width: 100px; text-align: right; white-space: nowrap;">
-                            ${showUnitPrice ? 'Стоимость (общ.)' : 'Стоимость'}
+                        <th style="text-align: right; white-space: nowrap;">
+                            ${showUnitPrice ? 'Стоимость' : 'Стоимость'}
                         </th>
                     </tr>
                 </thead>
@@ -1140,11 +1099,11 @@ function renderRepairDetails(repair) {
                         <div style="font-weight: 500;">${item.name || ''}</div>
                         ${item.note ? `<div style="color: var(--warning); font-size: 11px; margin-top: 3px;">${item.note}</div>` : ''}
                     </td>
-                    ${hasManufacturer ? `<td style="max-width: 120px; word-break: break-word;">${item.manufacturer || '-'}</td>` : ''}
-                    ${hasArticle ? `<td style="max-width: 100px; word-break: break-all;">${item.article || '-'}</td>` : ''}
+                    ${hasManufacturer ? `<td>${item.manufacturer || '-'}</td>` : ''}
+                    ${hasArticle ? `<td style="word-break: break-all;">${item.article || '-'}</td>` : ''}
                     ${hasQuantity ? `<td style="text-align: center;">${quantity}</td>` : ''}
-                    <td style="text-align: right; white-space: nowrap;">
-                        <div class="part-price" style="font-weight: 600; font-size: 13px;">
+                    <td style="text-align: right;">
+                        <div class="part-price">
                             ${totalPrice.toLocaleString('ru-RU')} руб
                         </div>
                         ${quantity > 1 && pricePerUnit ? `
@@ -1161,15 +1120,66 @@ function renderRepairDetails(repair) {
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="${1 + (hasManufacturer ? 1 : 0) + (hasArticle ? 1 : 0) + (hasQuantity ? 1 : 0)}" style="text-align: right; font-weight: 600; padding-top: 10px; border-top: 1px solid var(--border);">
+                        <td colspan="${1 + (hasManufacturer ? 1 : 0) + (hasArticle ? 1 : 0) + (hasQuantity ? 1 : 0)}" style="text-align: right; font-weight: 600;">
                             Итого запчастей:
                         </td>
-                        <td style="text-align: right; font-weight: 600; padding-top: 10px; border-top: 1px solid var(--border); white-space: nowrap;">
+                        <td style="text-align: right; font-weight: 600;">
                             ${partsTotal.toLocaleString('ru-RU')} руб
                         </td>
                     </tr>
                 </tfoot>
             </table>
+            
+            <!-- Мобильная версия (скрыта на десктопе) -->
+            <div class="parts-list">
+        `;
+        
+        // Мобильная версия (карточки)
+        repair.part_items.forEach(item => {
+            const quantity = item.quantity || 1;
+            const totalPrice = (item.price || 0) * quantity;
+            const pricePerUnit = item.price || 0;
+            
+            detailsHtml += `
+                <div class="part-item-mobile">
+                    <div class="part-name-mobile">${item.name || ''}</div>
+                    <div class="part-details-mobile">
+                        ${item.manufacturer && item.manufacturer.trim() !== '' ? 
+                            `<div class="part-detail-mobile">
+                                <i class="fas fa-industry"></i>
+                                <span>${item.manufacturer}</span>
+                            </div>` : ''}
+                        ${item.article && item.article.trim() !== '' ? 
+                            `<div class="part-detail-mobile">
+                                <i class="fas fa-barcode"></i>
+                                <span>${item.article}</span>
+                            </div>` : ''}
+                        ${quantity > 1 ? 
+                            `<div class="part-detail-mobile">
+                                <i class="fas fa-layer-group"></i>
+                                <span>${quantity} шт</span>
+                            </div>` : ''}
+                    </div>
+                    <div class="part-price-mobile">
+                        ${totalPrice.toLocaleString('ru-RU')} руб
+                        ${quantity > 1 && pricePerUnit ? 
+                            `<div style="color: var(--text); font-size: 11px; margin-top: 2px;">
+                                (${pricePerUnit.toLocaleString('ru-RU')} руб × ${quantity})
+                            </div>` : ''}
+                    </div>
+                    ${item.note ? `<div style="color: var(--warning); font-size: 11px; margin-top: 5px; padding-top: 5px; border-top: 1px dashed rgba(255,255,255,0.1);">${item.note}</div>` : ''}
+                </div>
+            `;
+        });
+        
+        detailsHtml += `
+                <div class="part-item-mobile" style="background-color: rgba(0, 0, 0, 0.25); border-color: var(--success);">
+                    <div class="part-name-mobile" style="font-size: 14px;">Итого запчастей:</div>
+                    <div class="part-price-mobile" style="font-size: 15px; color: var(--success);">
+                        ${partsTotal.toLocaleString('ru-RU')} руб
+                    </div>
+                </div>
+            </div>
         `;
     } else {
         detailsHtml += `<p style="color: var(--text); font-style: italic; font-size: 13px; padding: 10px;">Нет информации о запчастях</p>`;
@@ -1195,12 +1205,9 @@ function renderRepairDetails(repair) {
     
     // Добавляем кнопку редактирования только если авторизованы
     if (!isGuestMode) {
-        const isMobile = window.innerWidth <= 768;
-        const buttonStyle = isMobile ? 'style="width: 100%; justify-content: center;"' : '';
-        
         detailsHtml += `
             <div class="repair-actions" style="margin-top: 20px;">
-                <button class="btn btn-warning edit-repair-btn" data-repair-id="${repair.id}" ${buttonStyle}>
+                <button class="btn btn-warning edit-repair-btn" data-repair-id="${repair.id}">
                     <i class="fas fa-edit"></i> Редактировать
                 </button>
             </div>
@@ -1302,7 +1309,7 @@ async function saveRepair() {
     carData[currentCar].repairs.push(repair);
     closeAllForms();
     updateCarInfo();
-    updateRepairsTable();
+    updateRepairsCards();
     
     const saved = await saveCarData();
     showStatus(saved ? 'Ремонт успешно добавлен!' : 'Ремонт добавлен локально', saved ? 'success' : 'warning');
@@ -1404,7 +1411,7 @@ async function updateRepair() {
     
     closeAllForms();
     updateCarInfo();
-    updateRepairsTable();
+    updateRepairsCards();
     
     const saved = await saveCarData();
     showStatus(saved ? 'Ремонт успешно обновлен!' : 'Ремонт обновлен локально', saved ? 'success' : 'warning');
@@ -1428,7 +1435,7 @@ async function deleteRepair() {
     car.repairs.splice(repairIndex, 1);
     closeAllForms();
     updateCarInfo();
-    updateRepairsTable();
+    updateRepairsCards();
     
     const saved = await saveCarData();
     showStatus(saved ? 'Ремонт успешно удален!' : 'Ремонт удален локально', saved ? 'success' : 'warning');
@@ -1508,7 +1515,7 @@ function addSampleData() {
     });
     
     updateCarInfo();
-    updateRepairsTable();
+    updateRepairsCards();
     saveCarData();
     
     showStatus('Пример данных успешно добавлен!', 'success');
@@ -1564,31 +1571,36 @@ function sortRepairs(repairs, sortBy, order) {
     });
 }
 
-function sortTable(sortField) {
-    let newOrder = 'asc';
-    if (currentSort === sortField) {
-        newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
-    } else {
-        newOrder = 'asc';
-    }
-    
+function sortRepairsCards(sortField, sortOrder) {
     currentSort = sortField;
-    currentOrder = newOrder;
-    setSortIndicator(sortField, newOrder);
-    updateRepairsTable();
+    currentOrder = sortOrder;
+    
+    // Обновляем кнопки сортировки
+    updateSortButtons();
+    
+    // Обновляем карточки
+    updateRepairsCards();
 }
 
-function setSortIndicator(sortField, order) {
-    document.querySelectorAll('.repairs-table th').forEach(th => {
-        th.classList.remove('sorted-asc', 'sorted-desc');
-        th.setAttribute('data-order', '');
+function updateSortButtons() {
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        const sortField = btn.getAttribute('data-sort');
+        btn.classList.remove('active');
+        
+        if (sortField === currentSort) {
+            btn.classList.add('active');
+            
+            // Обновляем иконку направления сортировки
+            const icon = btn.querySelector('i');
+            if (icon) {
+                if (currentOrder === 'asc') {
+                    icon.className = 'fas fa-sort-amount-up';
+                } else {
+                    icon.className = 'fas fa-sort-amount-down';
+                }
+            }
+        }
     });
-    
-    const currentTh = document.querySelector(`.repairs-table th[data-sort="${sortField}"]`);
-    if (currentTh) {
-        currentTh.setAttribute('data-order', order);
-        currentTh.classList.add(order === 'asc' ? 'sorted-asc' : 'sorted-desc');
-    }
 }
 
 function performSearch(term) {
@@ -1599,7 +1611,7 @@ function performSearch(term) {
     searchTimeout = setTimeout(() => {
         searchTerm = term.trim();
         expandedRepairId = null;
-        updateRepairsTable();
+        updateRepairsCards();
     }, searchDebounceDelay);
 }
 
@@ -1638,7 +1650,7 @@ function handleFileUpload(event) {
             expandedRepairId = null;
             
             updateCarInfo();
-            updateRepairsTable();
+            updateRepairsCards();
             
             const saved = await saveCarData();
             showStatus(saved ? 'Данные успешно загружены из файла!' : 'Данные загружены локально', saved ? 'success' : 'warning');
@@ -1684,7 +1696,7 @@ async function mergeData() {
         
         jsonInput.value = '';
         updateCarInfo();
-        updateRepairsTable();
+        updateRepairsCards();
         
         const saved = await saveCarData();
         showStatus(saved ? 'Данные успешно объединены!' : 'Данные объединены локально', saved ? 'success' : 'warning');
@@ -1737,7 +1749,7 @@ function showStatus(message, type) {
     }, 3000);
 }
 
-// Обработчик изменения размера окна для перерисовки таблицы
+// Обработчик изменения размера окна для перерисовки карточек
 window.addEventListener('resize', function() {
-    updateRepairsTable();
+    updateRepairsCards();
 });
