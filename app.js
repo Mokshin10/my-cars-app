@@ -106,6 +106,7 @@ function updateUIForAuthState() {
     const logoutBtn = document.getElementById('logoutBtn');
     const loginBtn = document.getElementById('loginBtnMain');
     const modeIndicator = document.getElementById('modeIndicator');
+    const modeIcon = document.getElementById('modeIcon');
     const modeText = document.getElementById('modeText');
     const userInfo = document.getElementById('userInfo');
     
@@ -125,8 +126,11 @@ function updateUIForAuthState() {
             modeIndicator.classList.remove('mode-authorized');
             modeIndicator.classList.add('mode-guest');
         }
-        if (modeText) modeText.textContent = 'Гостевой режим (только просмотр)';
-        if (userInfo) userInfo.textContent = 'Просмотр общей базы данных';
+        if (modeIcon) {
+            modeIcon.className = 'fas fa-user'; // Иконка пользователя для гостя
+        }
+        if (modeText) modeText.textContent = 'Гость';
+        if (userInfo) userInfo.textContent = 'Гостевой доступ';
         
         // Скрываем кнопки редактирования
         if (saveToFileBtn) saveToFileBtn.style.display = 'none';
@@ -152,7 +156,10 @@ function updateUIForAuthState() {
             modeIndicator.classList.remove('mode-guest');
             modeIndicator.classList.add('mode-authorized');
         }
-        if (modeText) modeText.textContent = 'Режим редактирования';
+        if (modeIcon) {
+            modeIcon.className = 'fas fa-user-check'; // Иконка с галочкой для авторизованного
+        }
+        if (modeText) modeText.textContent = 'Редакт.';
         if (userInfo) userInfo.textContent = `Пользователь: ${currentUser?.email || 'Авторизован'}`;
         
         // Показываем кнопки редактирования
