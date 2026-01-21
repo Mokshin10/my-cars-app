@@ -2,6 +2,11 @@
 :root {
     --current-theme: 'arch';
     --font-primary: 'Segoe UI', 'Noto Sans', system-ui, sans-serif;
+    --container-padding: clamp(15px, 4vw, 25px);
+    --card-padding: clamp(16px, 3vw, 20px);
+    --gap-small: clamp(8px, 2vw, 12px);
+    --gap-medium: clamp(12px, 3vw, 20px);
+    --gap-large: clamp(16px, 4vw, 25px);
 }
 
 /* Тема Arch Linux (текущая) */
@@ -18,6 +23,7 @@
     --error: #f7768e;
     --accent: #7aa2f7;
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Тема Rosé Pine */
@@ -34,6 +40,7 @@
     --error: #eb6f92;
     --accent: #c4a7e7;
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 * {
@@ -47,7 +54,7 @@ body {
     background-color: var(--bg);
     color: var(--text);
     line-height: 1.6;
-    padding: 15px;
+    padding: var(--container-padding);
     min-height: 100vh;
 }
 
@@ -56,14 +63,14 @@ body {
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: var(--gap-large);
 }
 
 /* Панель выбора темы */
 .theme-selector {
     position: fixed;
-    top: 15px;
-    right: 15px;
+    top: var(--container-padding);
+    right: var(--container-padding);
     z-index: 1000;
     display: flex;
     gap: 8px;
@@ -121,8 +128,8 @@ body {
 /* Кнопки входа/выхода */
 .logout-btn, .login-btn {
     position: fixed;
-    top: 15px;
-    left: 15px;
+    top: var(--container-padding);
+    left: var(--container-padding);
     z-index: 1000;
     background-color: var(--surface);
     border: 1px solid var(--border);
@@ -152,7 +159,7 @@ body {
         position: relative;
         top: 0;
         left: 0;
-        margin-bottom: 10px;
+        margin-bottom: var(--gap-small);
         align-self: flex-start;
     }
 }
@@ -160,7 +167,7 @@ body {
 /* Индикатор режима */
 .mode-indicator {
     position: fixed;
-    top: 15px;
+    top: var(--container-padding);
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;
@@ -193,7 +200,7 @@ body {
         left: 0;
         transform: none;
         align-self: center;
-        margin-bottom: 10px;
+        margin-bottom: var(--gap-small);
     }
 }
 
@@ -207,10 +214,8 @@ body {
     height: 100%;
     background-color: rgba(0, 0, 0, 0.8);
     z-index: 2000;
-    display: flex;
     align-items: center;
     justify-content: center;
-    animation: fadeIn 0.3s ease;
 }
 
 @keyframes fadeIn {
@@ -221,12 +226,14 @@ body {
 .modal-content {
     background-color: var(--surface);
     border-radius: 12px;
-    padding: 25px;
-    max-width: 400px;
+    padding: clamp(20px, 5vw, 30px);
+    max-width: min(400px, 90vw);
     width: 90%;
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     animation: slideUp 0.3s ease;
+    position: relative;
+    z-index: 2001;
 }
 
 @keyframes slideUp {
@@ -238,7 +245,7 @@ body {
     color: var(--text-light);
     margin-bottom: 15px;
     text-align: center;
-    font-size: 18px;
+    font-size: clamp(16px, 4vw, 18px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -249,19 +256,20 @@ body {
     color: var(--text);
     margin-bottom: 20px;
     text-align: center;
-    font-size: 14px;
+    font-size: clamp(13px, 3vw, 14px);
 }
 
 .modal-buttons {
     display: flex;
     gap: 10px;
     margin-top: 20px;
+    flex-wrap: wrap;
 }
 
 .auth-info {
     margin-top: 15px;
     text-align: center;
-    font-size: 12px;
+    font-size: clamp(11px, 2vw, 12px);
     color: var(--text);
     padding: 8px;
     background-color: rgba(0, 0, 0, 0.2);
@@ -273,10 +281,10 @@ body {
 .header {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    padding-bottom: 15px;
+    gap: var(--gap-medium);
+    padding-bottom: var(--gap-medium);
     border-bottom: 1px solid var(--border);
-    margin-bottom: 10px;
+    margin-bottom: var(--gap-small);
 }
 
 @media (min-width: 769px) {
@@ -290,30 +298,30 @@ body {
 .logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--gap-small);
     flex-shrink: 0;
 }
 
 .logo-icon {
     color: var(--primary);
-    font-size: 24px;
+    font-size: clamp(20px, 5vw, 24px);
 }
 
 .logo-text {
-    font-size: 20px;
+    font-size: clamp(18px, 4vw, 20px);
     font-weight: 600;
     color: var(--text-light);
 }
 
 .logo-subtext {
-    font-size: 13px;
+    font-size: clamp(12px, 3vw, 13px);
     color: var(--text);
 }
 
 /* Выбор автомобиля */
 .car-selector {
     display: flex;
-    gap: 10px;
+    gap: var(--gap-small);
     flex-wrap: wrap;
     justify-content: center;
 }
@@ -329,22 +337,15 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 12px;
+    padding: var(--card-padding);
     border: 2px solid var(--border);
     border-radius: 10px;
     background-color: var(--surface);
     cursor: pointer;
     transition: all 0.3s ease;
-    min-width: 140px;
-    flex: 1;
+    min-width: clamp(120px, 30vw, 180px);
+    flex: 1 1 auto;
     max-width: 180px;
-}
-
-@media (max-width: 480px) {
-    .car-option {
-        min-width: 120px;
-        padding: 10px;
-    }
 }
 
 .car-option:hover {
@@ -364,7 +365,7 @@ body {
 
 .car-image {
     width: 100%;
-    height: 70px;
+    height: clamp(60px, 15vw, 70px);
     object-fit: contain;
     margin-bottom: 8px;
     border-radius: 6px;
@@ -376,7 +377,7 @@ body {
     color: var(--text-light);
     margin-bottom: 4px;
     text-align: center;
-    font-size: 14px;
+    font-size: clamp(13px, 3vw, 14px);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -384,7 +385,7 @@ body {
 }
 
 .car-details {
-    font-size: 12px;
+    font-size: clamp(11px, 2vw, 12px);
     color: var(--text);
     text-align: center;
 }
@@ -392,21 +393,20 @@ body {
 /* Поисковая строка */
 .search-container {
     display: flex;
-    margin: 10px 0 15px;
+    margin: var(--gap-small) 0 var(--gap-medium);
     position: relative;
 }
 
 .search-input {
     flex-grow: 1;
-    padding: 12px 16px;
+    padding: 12px 45px 12px 16px;
     background-color: var(--surface);
     border: 2px solid var(--border);
     border-radius: 8px;
     color: var(--text-light);
-    font-size: 14px;
+    font-size: clamp(13px, 3vw, 14px);
     outline: none;
     transition: border-color 0.3s;
-    padding-right: 45px;
 }
 
 .search-input:focus {
@@ -426,28 +426,28 @@ body {
 .main-content {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: var(--gap-large);
 }
 
 @media (min-width: 769px) {
     .main-content {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 25px;
+        gap: var(--gap-large);
     }
 }
 
 .car-info {
     background-color: var(--surface);
     border-radius: 12px;
-    padding: 15px;
+    padding: var(--card-padding);
     border: 1px solid var(--border);
 }
 
 .section-title {
     color: var(--text-light);
-    font-size: 16px;
-    margin-bottom: 15px;
+    font-size: clamp(15px, 4vw, 16px);
+    margin-bottom: var(--gap-medium);
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
     display: flex;
@@ -455,152 +455,206 @@ body {
     justify-content: space-between;
 }
 
+/* Статистика автомобиля */
 .car-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 12px;
-    margin-bottom: 15px;
-}
-
-@media (max-width: 480px) {
-    .car-stats {
-        grid-template-columns: 1fr 1fr;
-    }
+    grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+    gap: var(--gap-small);
+    margin-bottom: var(--gap-medium);
 }
 
 .stat-item {
     background-color: rgba(0, 0, 0, 0.2);
-    padding: 10px;
+    padding: var(--gap-small);
     border-radius: 8px;
     border-left: 4px solid var(--primary);
 }
 
 .stat-label {
-    font-size: 12px;
+    font-size: clamp(11px, 2vw, 12px);
     color: var(--text);
     margin-bottom: 4px;
 }
 
 .stat-value {
-    font-size: 16px;
+    font-size: clamp(14px, 3vw, 16px);
     font-weight: 600;
     color: var(--text-light);
 }
 
-/* ==================== ТАБЛИЦА РЕМОНТОВ - ДЕСКТОПНАЯ ВЕРСИЯ ==================== */
-
-.table-container {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-.repairs-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    min-width: 600px;
-}
-
-.repairs-table th {
-    background-color: rgba(0, 0, 0, 0.3);
-    color: var(--text-light);
-    text-align: left;
-    padding: 12px 10px;
-    font-weight: 600;
-    border-bottom: 2px solid var(--border);
-    cursor: pointer;
-    transition: background-color 0.3s;
-    position: relative;
-    font-size: 13px;
-    white-space: nowrap;
-}
-
-.repairs-table th:hover {
-    background-color: rgba(122, 162, 247, 0.1);
-}
-
-.theme-rosepine .repairs-table th:hover {
-    background-color: rgba(235, 111, 146, 0.1);
-}
-
-.repairs-table th i {
-    margin-left: 6px;
-    color: var(--primary);
-    font-size: 11px;
-    opacity: 0.7;
-}
-
-.repairs-table th.sorted-asc i.fa-sort-up,
-.repairs-table th.sorted-desc i.fa-sort-down {
-    opacity: 1;
-}
-
-.repairs-table td {
-    padding: 10px;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-}
-
-.repairs-table tr {
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-.repairs-table tr:hover {
-    background-color: rgba(122, 162, 247, 0.05);
-}
-
-.theme-rosepine .repairs-table tr:hover {
-    background-color: rgba(235, 111, 146, 0.05);
-}
-
-.repairs-table tr.expanded {
-    background-color: rgba(122, 162, 247, 0.1);
-}
-
-.theme-rosepine .repairs-table tr.expanded {
-    background-color: rgba(235, 111, 146, 0.1);
-}
-
-.repair-part {
-    color: var(--text-light);
-    font-weight: 500;
-    font-size: 13px;
-}
-
-.repair-price {
-    color: var(--success);
-    font-weight: 600;
-    font-size: 13px;
-}
-
-.repair-sto {
-    font-size: 12px;
-    color: var(--warning);
-}
-
-/* Детализация ремонта */
-.repair-details {
-    display: none;
-    padding: 15px;
-    background-color: rgba(0, 0, 0, 0.2);
+/* Сортировка для карточек */
+.sort-controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-small);
+    margin-bottom: var(--gap-medium);
+    padding: var(--gap-small);
+    background-color: rgba(0, 0, 0, 0.1);
     border-radius: 8px;
-    margin-top: 10px;
     border: 1px solid var(--border);
 }
 
-.repair-details.active {
-    display: block;
+.sort-label {
+    font-size: clamp(12px, 3vw, 13px);
+    color: var(--text);
+    font-weight: 500;
 }
 
+.sort-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-small);
+}
+
+.sort-btn {
+    flex: 1 1 auto;
+    min-width: fit-content;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: clamp(11px, 2vw, 12px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s;
+}
+
+.sort-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.sort-btn.active {
+    background-color: var(--primary);
+    color: var(--bg);
+    border-color: var(--primary);
+}
+
+/* Контейнер для карточек ремонтов */
+.repairs-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-medium);
+    width: 100%;
+}
+
+/* Карточка ремонта - ЕДИНЫЙ СТИЛЬ ДЛЯ ВСЕХ УСТРОЙСТВ */
+.repair-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: var(--card-padding);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    box-shadow: var(--card-shadow);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.repair-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.repair-card.expanded {
+    background-color: rgba(122, 162, 247, 0.1);
+    border-color: var(--primary);
+}
+
+.theme-rosepine .repair-card.expanded {
+    background-color: rgba(235, 111, 146, 0.1);
+}
+
+/* Шапка карточки */
+.repair-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--gap-small);
+    gap: var(--gap-small);
+    flex-wrap: wrap;
+}
+
+.repair-card-date {
+    font-size: clamp(13px, 3vw, 14px);
+    font-weight: 600;
+    color: var(--text-light);
+    white-space: nowrap;
+}
+
+.repair-card-mileage {
+    font-size: clamp(12px, 2vw, 13px);
+    color: var(--warning);
+    background-color: rgba(224, 175, 104, 0.1);
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.repair-card-work {
+    font-size: clamp(14px, 3vw, 15px);
+    font-weight: 600;
+    color: var(--text-light);
+    margin-bottom: var(--gap-small);
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+.repair-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--gap-small);
+    margin-top: var(--gap-small);
+    padding-top: var(--gap-small);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.repair-card-sto {
+    font-size: clamp(12px, 2vw, 13px);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.repair-card-price {
+    font-size: clamp(14px, 3vw, 15px);
+    font-weight: 600;
+    color: var(--success);
+}
+
+/* Детали карточки */
+.repair-card-details {
+    margin-top: var(--gap-medium);
+    padding-top: var(--gap-medium);
+    border-top: 1px solid var(--border);
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 1000px;
+    }
+}
+
+/* Детали ремонта (адаптивные стили для мобильных) */
 .details-section {
-    margin-bottom: 15px;
+    margin-bottom: var(--gap-medium);
 }
 
 .details-title {
     color: var(--text-light);
-    font-size: 14px;
+    font-size: clamp(13px, 3vw, 14px);
     margin-bottom: 8px;
     padding-bottom: 5px;
     border-bottom: 1px solid var(--border);
@@ -609,34 +663,160 @@ body {
     gap: 6px;
 }
 
-.details-table {
+/* Работы - таблица для всех устройств */
+.works-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 12px;
+    font-size: clamp(12px, 2.5vw, 13px);
+    margin-bottom: var(--gap-medium);
 }
 
-.details-table th {
+.works-table th {
     background-color: rgba(0, 0, 0, 0.3);
     color: var(--text-light);
     text-align: left;
-    padding: 8px;
+    padding: 10px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+}
+
+.works-table td {
+    padding: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    word-wrap: break-word;
+}
+
+.works-table tr:last-child td {
+    border-bottom: none;
+}
+
+.works-table tfoot tr {
+    border-top: 1px solid var(--border);
+}
+
+.works-table tfoot td {
+    padding-top: 12px;
+    font-weight: 600;
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+.work-price {
+    color: var(--success);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Запчасти - адаптивный дизайн для мобильных */
+.parts-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-small);
+    margin-bottom: var(--gap-medium);
+}
+
+/* Десктопная версия таблицы запчастей */
+.desktop-parts-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: clamp(12px, 2.5vw, 13px);
+    margin-bottom: var(--gap-medium);
+}
+
+.desktop-parts-table th {
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--text-light);
+    text-align: left;
+    padding: 10px;
     font-weight: 600;
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
 }
 
-.details-table td {
-    padding: 8px;
+.desktop-parts-table td {
+    padding: 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    word-wrap: break-word;
 }
 
-.details-table tr:last-child td {
+.desktop-parts-table tr:last-child td {
     border-bottom: none;
 }
 
-.part-price, .work-price {
+.desktop-parts-table tfoot tr {
+    border-top: 1px solid var(--border);
+}
+
+.desktop-parts-table tfoot td {
+    padding-top: 12px;
+    font-weight: 600;
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+.part-price {
     color: var(--success);
     font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Мобильная версия запчастей (карточки) */
+.part-item-mobile {
+    background-color: rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: var(--gap-small);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.part-name-mobile {
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: clamp(13px, 3vw, 14px);
+    word-break: break-word;
+}
+
+.part-details-mobile {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: clamp(11px, 2.5vw, 12px);
+    color: var(--text);
+}
+
+.part-detail-mobile {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.part-price-mobile {
+    color: var(--success);
+    font-weight: 600;
+    font-size: clamp(13px, 3vw, 14px);
+    text-align: right;
+    margin-top: 4px;
+}
+
+/* Скрываем десктопную таблицу на мобильных и мобильную версию на десктопе */
+@media (max-width: 768px) {
+    .desktop-parts-table {
+        display: none;
+    }
+    
+    .parts-list {
+        display: flex;
+    }
+}
+
+@media (min-width: 769px) {
+    .parts-list {
+        display: none;
+    }
+    
+    .desktop-parts-table {
+        display: table;
+    }
 }
 
 .details-total {
@@ -646,7 +826,7 @@ body {
     padding: 12px;
     background-color: rgba(0, 0, 0, 0.3);
     border-radius: 8px;
-    margin-top: 15px;
+    margin-top: var(--gap-medium);
     border: 1px solid var(--border);
 }
 
@@ -661,12 +841,12 @@ body {
 .total-label {
     color: var(--text-light);
     font-weight: 600;
-    font-size: 14px;
+    font-size: clamp(13px, 3vw, 14px);
 }
 
 .total-value {
     color: var(--success);
-    font-size: 16px;
+    font-size: clamp(14px, 3vw, 16px);
     font-weight: 600;
 }
 
@@ -674,27 +854,56 @@ body {
     background-color: rgba(224, 175, 104, 0.1);
     border: 1px solid var(--warning);
     border-radius: 8px;
-    padding: 10px;
-    margin-top: 12px;
-    font-size: 12px;
+    padding: var(--gap-small);
+    margin-top: var(--gap-small);
+    font-size: clamp(11px, 2vw, 12px);
     color: var(--warning);
+    word-wrap: break-word;
 }
 
 /* Кнопки действий в детализации */
 .repair-actions {
     display: flex;
-    gap: 8px;
-    margin-top: 15px;
+    gap: var(--gap-small);
+    margin-top: var(--gap-medium);
     justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+    .repair-actions {
+        flex-direction: column;
+    }
+    
+    .repair-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Нет ремонтов */
+.no-repairs {
+    text-align: center;
+    padding: var(--gap-large);
+    color: var(--text);
+    font-style: italic;
+    font-size: clamp(13px, 3vw, 14px);
+}
+
+.no-repairs i {
+    font-size: 48px;
+    color: var(--text);
+    opacity: 0.3;
+    margin-bottom: var(--gap-small);
 }
 
 /* Формы */
 .add-repair-form, .edit-repair-form {
     background-color: var(--surface);
     border-radius: 12px;
-    padding: 15px;
+    padding: var(--card-padding);
     border: 1px solid var(--border);
-    margin-top: 15px;
+    margin-top: var(--gap-medium);
     display: none;
 }
 
@@ -703,7 +912,7 @@ body {
 }
 
 .form-group {
-    margin-bottom: 15px;
+    margin-bottom: var(--gap-medium);
 }
 
 .form-label {
@@ -711,34 +920,36 @@ body {
     margin-bottom: 6px;
     color: var(--text-light);
     font-weight: 500;
-    font-size: 14px;
+    font-size: clamp(13px, 3vw, 14px);
 }
 
 .form-input, .form-textarea {
     width: 100%;
-    padding: 10px 14px;
+    padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 14px);
     background-color: rgba(0, 0, 0, 0.2);
     border: 2px solid var(--border);
     border-radius: 8px;
     color: var(--text-light);
-    font-size: 14px;
+    font-size: clamp(13px, 3vw, 14px);
     outline: none;
     transition: border-color 0.3s;
+    box-sizing: border-box;
 }
 
 .form-textarea {
     min-height: 100px;
     resize: vertical;
     font-family: var(--font-primary);
-    font-size: 13px;
+    font-size: clamp(12px, 2vw, 13px);
 }
 
 .form-input:focus, .form-textarea:focus {
     border-color: var(--primary);
 }
 
+/* Кнопки */
 .btn {
-    padding: 8px 14px;
+    padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px);
     border-radius: 8px;
     border: none;
     font-weight: 600;
@@ -748,8 +959,9 @@ body {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    font-size: 13px;
+    font-size: clamp(12px, 2vw, 13px);
     min-height: 40px;
+    box-sizing: border-box;
 }
 
 .btn-primary {
@@ -802,8 +1014,8 @@ body {
 .file-actions {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-top: 15px;
+    gap: var(--gap-small);
+    margin-top: var(--gap-medium);
 }
 
 @media (min-width: 480px) {
@@ -811,28 +1023,35 @@ body {
         flex-direction: row;
         flex-wrap: wrap;
     }
+    
+    .file-actions .btn {
+        flex: 1 1 auto;
+        min-width: fit-content;
+    }
 }
 
 /* Пример структуры данных */
 .data-example {
     background-color: rgba(0, 0, 0, 0.2);
-    padding: 12px;
+    padding: var(--gap-medium);
     border-radius: 8px;
-    margin-bottom: 12px;
+    margin-bottom: var(--gap-small);
     border: 1px solid var(--border);
+    overflow-x: auto;
 }
 
 .data-example code {
     color: var(--success);
-    font-size: 12px;
+    font-size: clamp(11px, 2vw, 12px);
     line-height: 1.4;
-    word-break: break-all;
+    word-break: break-word;
+    white-space: pre-wrap;
 }
 
 .data-example-title {
     color: var(--warning);
     margin-bottom: 8px;
-    font-size: 13px;
+    font-size: clamp(12px, 2vw, 13px);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -840,12 +1059,12 @@ body {
 
 /* Индикатор загрузки/сохранения */
 .status-message {
-    padding: 10px;
+    padding: var(--gap-small);
     border-radius: 8px;
-    margin-top: 15px;
+    margin-top: var(--gap-medium);
     display: none;
     text-align: center;
-    font-size: 13px;
+    font-size: clamp(12px, 2vw, 13px);
 }
 
 .status-success {
@@ -891,25 +1110,13 @@ body {
     animation: slideDown 0.3s ease;
 }
 
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        max-height: 0;
-    }
-    to {
-        opacity: 1;
-        max-height: 500px;
-    }
-}
-
 /* Сообщение о пустом результате поиска */
 .no-results {
     text-align: center;
-    padding: 20px;
+    padding: var(--gap-large);
     color: var(--text);
     font-style: italic;
-    grid-column: 1 / -1;
-    font-size: 13px;
+    font-size: clamp(13px, 3vw, 14px);
 }
 
 .highlight {
@@ -928,11 +1135,11 @@ body {
     background-color: rgba(122, 162, 247, 0.1);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 10px 12px;
-    margin-top: 10px;
+    padding: var(--gap-small);
+    margin-top: var(--gap-small);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--gap-small);
     align-items: center;
 }
 
@@ -955,7 +1162,7 @@ body {
     padding: 5px 10px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: clamp(11px, 2vw, 12px);
     transition: all 0.3s;
     display: flex;
     align-items: center;
@@ -970,11 +1177,11 @@ body {
 
 /* Футер */
 .footer {
-    margin-top: 20px;
+    margin-top: var(--gap-large);
     text-align: center;
-    padding-top: 15px;
+    padding-top: var(--gap-medium);
     border-top: 1px solid var(--border);
-    font-size: 12px;
+    font-size: clamp(11px, 2vw, 12px);
     color: var(--text);
 }
 
@@ -989,217 +1196,6 @@ body {
 
 .mt-20 {
     margin-top: 20px;
-}
-
-/* ==================== МОБИЛЬНАЯ ВЕРСИЯ ТАБЛИЦЫ ==================== */
-
-@media (max-width: 768px) {
-    /* НЕ скрываем таблицу, а перестраиваем ее отображение */
-    .repairs-table {
-        width: 100% !important;
-        min-width: 100% !important;
-        display: table !important;
-        border-collapse: collapse !important;
-        table-layout: fixed !important;
-    }
-    
-    /* Скрываем заголовки на мобильных */
-    .repairs-table thead {
-        display: none;
-    }
-    
-    /* Делаем строки блочными и превращаем в карточки */
-    .repairs-table tbody tr {
-        display: grid;
-        width: 100% !important;
-        max-width: 100vw !important;
-        min-width: 78vw !important;
-        margin: 0 0 12px 0 !important;
-        padding: 16px !important;
-        background-color: var(--surface) !important;
-        border: 1px solid var(--border) !important;
-        border-radius: 12px !important;
-        box-shadow: var(--shadow) !important;
-        box-sizing: border-box !important;
-    }
-    
-    /* Делаем ячейки блочными и на всю ширину */
-    .repairs-table tbody tr td {
-        display: block !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        padding: 5px 0 !important;
-        border: none !important;
-        text-align: left !important;
-    }
-    
-    /* Особые стили для ячеек в карточке */
-    .repairs-table tbody tr td:nth-child(1) {
-        font-weight: 600;
-        color: var(--text-light);
-        font-size: 14px;
-        margin-bottom: 8px;
-    }
-    
-    .repairs-table tbody tr td:nth-child(2) {
-        color: var(--warning);
-        font-size: 14px;
-        margin-bottom: 10px;
-    }
-    
-    .repairs-table tbody tr td:nth-child(3) {
-        color: var(--text-light);
-        font-weight: 600;
-        font-size: 15px;
-        margin-bottom: 12px;
-        word-break: break-word;
-    }
-    
-    .repairs-table tbody tr td:nth-child(4) {
-        color: var(--text);
-        font-size: 13px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 10px;
-    }
-    
-    .repairs-table tbody tr td:nth-child(5) {
-        color: var(--success);
-        font-weight: 600;
-        font-size: 15px;
-        text-align: left !important;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        padding-top: 10px !important;
-    }
-    
-    /* Обработка строки с деталями ремонта */
-    .repair-details-row {
-        margin-top: -12px !important;
-        margin-bottom: 20px !important;
-        border-radius: 0 0 12px 12px !important;
-        padding: 0 16px 16px 16px !important;
-        background-color: rgba(0, 0, 0, 0.1) !important;
-    }
-    
-    .repair-details-row td {
-        padding: 0 !important;
-    }
-    
-    /* Детали ремонта на мобильных - растягиваем на всю ширину */
-    .repair-details {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-        padding: 15px !important;
-        border-radius: 8px !important;
-        border: 1px solid var(--border) !important;
-        box-sizing: border-box !important;
-    }
-    
-    /* Таблицы внутри деталей - добавляем горизонтальную прокрутку */
-    .details-table {
-        display: block;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    .details-table table {
-        min-width: 100%;
-    }
-    
-    /* Кнопки на мобильных */
-    .btn {
-        width: 100%;
-        margin-bottom: 5px;
-    }
-    
-    .repair-actions {
-        flex-direction: column;
-    }
-    
-    /* Дополнительные адаптивные стили */
-    body {
-        padding: 10px;
-    }
-    
-    .container {
-        gap: 15px;
-    }
-    
-    .car-option {
-        min-width: calc(50% - 5px);
-    }
-}
-
-/* Адаптивность для очень маленьких экранов */
-@media (max-width: 480px) {
-    .car-stats {
-        grid-template-columns: 1fr;
-    }
-    
-    .logo-text {
-        font-size: 18px;
-    }
-    
-    .logo-subtext {
-        font-size: 12px;
-    }
-    
-    .section-title {
-        font-size: 15px;
-    }
-    
-    .form-input, .form-textarea {
-        font-size: 13px;
-        padding: 8px 12px;
-    }
-    
-    /* Еще более компактные карточки */
-    .repairs-table tbody tr {
-        padding: 14px 14px 14px 14px !important;
-    }
-    
-    .repairs-table tbody tr td:nth-child(3) {
-        font-size: 14px;
-    }
-    
-    .repairs-table tbody tr td:nth-child(5) {
-        font-size: 14px;
-    }
-}
-
-/* Стили для формы аутентификации */
-.auth-container {
-    max-width: 400px;
-    margin: 50px auto;
-    padding: 20px;
-    background-color: var(--surface);
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-}
-
-.auth-title {
-    text-align: center;
-    margin-bottom: 20px;
-    color: var(--text-light);
-}
-
-.auth-switch {
-    text-align: center;
-    margin-top: 15px;
-    font-size: 13px;
-}
-
-.auth-link {
-    color: var(--primary);
-    cursor: pointer;
-    text-decoration: underline;
-}
-
-.auth-link:hover {
-    color: var(--accent);
 }
 
 /* Сворачиваемый блок информации об авто */
@@ -1231,4 +1227,79 @@ body {
     margin-bottom: 0;
     padding: 0;
     border: none;
+}
+
+/* Адаптивность для очень маленьких экранов */
+@media (max-width: 480px) {
+    .car-stats {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .sort-buttons {
+        flex-direction: column;
+    }
+    
+    .repair-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .repair-card-date, .repair-card-mileage {
+        width: 100%;
+        text-align: left;
+    }
+    
+    .repair-card-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .repair-actions {
+        width: 100%;
+    }
+}
+
+/* Медиа-запросы для iPhone (особенно большие модели) */
+@media only screen and (max-width: 768px) and (orientation: portrait) {
+    .car-info {
+        padding: clamp(12px, 3vw, 16px);
+    }
+    
+    .repair-card {
+        padding: clamp(14px, 3.5vw, 18px);
+    }
+    
+    .btn {
+        min-height: 44px; /* Увеличиваем для удобства нажатия на iPhone */
+    }
+    
+    .form-input, .form-textarea {
+        font-size: 16px; /* Предотвращаем увеличение в iOS */
+        padding: 12px 16px;
+    }
+}
+
+/* Поддержка Safe Area для iPhone X и новее */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: max(var(--container-padding), env(safe-area-inset-left));
+        padding-right: max(var(--container-padding), env(safe-area-inset-right));
+        padding-bottom: max(var(--container-padding), env(safe-area-inset-bottom));
+    }
+    
+    .logout-btn, .login-btn {
+        left: max(var(--container-padding), env(safe-area-inset-left));
+    }
+    
+    .theme-selector {
+        right: max(var(--container-padding), env(safe-area-inset-right));
+    }
+}
+
+/* Улучшения для темного режима на iOS */
+@media (prefers-color-scheme: dark) {
+    .theme-arch, .theme-rosepine {
+        --bg: #0c0d11;
+        --surface: #1a1b26;
+    }
 }
