@@ -275,6 +275,47 @@ async function saveCarDataToFirestore() {
     }
 }
 
+async function saveAllCarDataToFirestore() {
+    try {
+        if (isGuestMode) {
+            console.log('Гость: данные не сохраняются');
+            return false;
+        }
+        
+        console.log('Сохранение всех данных в Firestore...');
+        
+        // Для каждого автомобиля пересчитываем статистику перед сохранением
+        Object.keys(carData).forEach(carKey => {
+            const car = carData[carKey];
+            if (car.repairs && Array.isArray(car.repairs)) {
+                car.totalRepairs = car.repairs.length;
+                car.totalSpent = car.repairs.reduce((sum, repair) => sum + (repair.total_price || 0), 0);
+                
+                if (car.repairs.length > 0) {
+                    const sortedRepairs = [...car.repairs].sort((a, b) => parseDate(b.date) - parseDate(a.date));
+                    car.lastRepair = sortedRepairs[0].date || '';
+                } else {
+                    car.lastRepair = '';
+                }
+            }
+        });
+        
+        // Сохраняем все автомобили
+        for (const [carId, data] of Object.entries(carData)) {
+            await db.collection('cars').doc(carId).set(data, { merge: true });
+            console.log(`Сохранен автомобиль ${carId}:`, data);
+        }
+        
+        console.log('Все данные успешно сохранены в Firestore');
+        return true;
+        
+    } catch (error) {
+        console.error('Ошибка сохранения всех данных:', error);
+        showStatus('Ошибка сохранения в Firebase: ' + error.message, 'error');
+        return false;
+    }
+}
+
 async function loadUserSettings() {
     try {
         if (!currentUser) return false;
@@ -650,9 +691,13 @@ function updateCarInfo() {
     const car = carData[currentCar];
     if (!car) return;
     
+    // Считаем общее количество ремонтов
     car.totalRepairs = car.repairs ? car.repairs.length : 0;
+    
+    // Считаем общую сумму
     car.totalSpent = car.repairs ? car.repairs.reduce((sum, repair) => sum + (repair.total_price || 0), 0) : 0;
     
+    // Находим последний ремонт
     if (car.repairs && car.repairs.length > 0) {
         const sortedRepairs = [...car.repairs].sort((a, b) => parseDate(b.date) - parseDate(a.date));
         car.lastRepair = sortedRepairs[0].date || '';
@@ -807,8 +852,155 @@ function updateRepairsCards() {
 }
 
 function renderRepairDetails(repair) {
-    // ... (эта функция остается без изменений, как в вашем оригинальном коде)
-    // Верните тот же HTML что и раньше
+    let html = '';
+    
+    // Работы
+    if (repair.work_items && repair.work_items.length > 0) {
+        html += `
+            <div class="details-section">
+                <div class="details-title">
+                    <i class="fas fa-tools"></i> Работы
+                </div>
+                <table class="works-table">
+                    <thead>
+                        <tr>
+                            <th>Наименование</th>
+                            <th style="text-align: right;">Стоимость</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        repair.work_items.forEach(item => {
+            html += `
+                <tr>
+                    <td>${item.name || ''}</td>
+                    <td class="work-price" style="text-align: right;">
+                        ${(item.price || 0).toLocaleString('ru-RU')} руб
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td style="font-weight: 600;">Итого по работам:</td>
+                            <td style="text-align: right; font-weight: 600;">
+                                ${repair.work_items.reduce((sum, item) => sum + (item.price || 0), 0).toLocaleString('ru-RU')} руб
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        `;
+    }
+    
+    // Запчасти
+    if (repair.part_items && repair.part_items.length > 0) {
+        html += `
+            <div class="details-section">
+                <div class="details-title">
+                    <i class="fas fa-cogs"></i> Запчасти
+                </div>
+                
+                <!-- Десктопная версия (таблица) -->
+                <table class="desktop-parts-table">
+                    <thead>
+                        <tr>
+                            <th>Наименование</th>
+                            <th>Производитель</th>
+                            <th>Артикул</th>
+                            <th>Кол-во</th>
+                            <th style="text-align: right;">Стоимость</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        repair.part_items.forEach(item => {
+            html += `
+                <tr>
+                    <td>${item.name || ''}</td>
+                    <td>${item.manufacturer || ''}</td>
+                    <td>${item.article || ''}</td>
+                    <td>${item.quantity || 1}</td>
+                    <td class="part-price" style="text-align: right;">
+                        ${(item.price || 0).toLocaleString('ru-RU')} руб
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4" style="font-weight: 600;">Итого по запчастям:</td>
+                            <td style="text-align: right; font-weight: 600;">
+                                ${repair.part_items.reduce((sum, item) => sum + (item.price || 0), 0).toLocaleString('ru-RU')} руб
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+                
+                <!-- Мобильная версия (карточки) -->
+                <div class="parts-list">
+        `;
+        
+        repair.part_items.forEach(item => {
+            html += `
+                <div class="part-item-mobile">
+                    <div class="part-name-mobile">${item.name || ''}</div>
+                    <div class="part-details-mobile">
+                        ${item.manufacturer ? `<div class="part-detail-mobile"><i class="fas fa-industry"></i> ${item.manufacturer}</div>` : ''}
+                        ${item.article ? `<div class="part-detail-mobile"><i class="fas fa-barcode"></i> ${item.article}</div>` : ''}
+                        <div class="part-detail-mobile"><i class="fas fa-layer-group"></i> ${item.quantity || 1}</div>
+                    </div>
+                    <div class="part-price-mobile">${(item.price || 0).toLocaleString('ru-RU')} руб</div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    // Итог
+    html += `
+        <div class="details-total">
+            <div class="total-label">Общая стоимость ремонта:</div>
+            <div class="total-value">${(repair.total_price || 0).toLocaleString('ru-RU')} руб</div>
+        </div>
+    `;
+    
+    // Примечания
+    if (repair.notes && repair.notes.trim()) {
+        html += `
+            <div class="details-section">
+                <div class="details-title">
+                    <i class="fas fa-sticky-note"></i> Примечания
+                </div>
+                <div class="repair-notes">
+                    ${repair.notes}
+                </div>
+            </div>
+        `;
+    }
+    
+    // Кнопки действий
+    html += `
+        <div class="repair-actions">
+            <button class="btn btn-secondary edit-repair-btn" data-repair-id="${repair.id}">
+                <i class="fas fa-edit"></i> Редактировать
+            </button>
+        </div>
+    `;
+    
+    return html;
 }
 
 // ==================== ОПЕРАЦИИ С РЕМОНТАМИ ====================
@@ -1192,12 +1384,11 @@ function saveToFile() {
     }
 }
 
-function handleFileUpload(event) {
-    const file = event.target.files[0];
+function handleFileUpload(e) {
+    const file = e.target.files[0];
     if (!file) return;
     
     const reader = new FileReader();
-    
     reader.onload = async function(e) {
         try {
             const loadedData = JSON.parse(e.target.result);
@@ -1205,15 +1396,27 @@ function handleFileUpload(event) {
             // Объединяем данные
             Object.keys(loadedData).forEach(carKey => {
                 if (carData[carKey]) {
-                    // Обновляем ремонты
+                    // Если ремонты уже есть, добавляем новые
                     if (loadedData[carKey].repairs) {
+                        if (!carData[carKey].repairs) {
+                            carData[carKey].repairs = [];
+                        }
+                        
                         loadedData[carKey].repairs.forEach(newRepair => {
                             const exists = carData[carKey].repairs.some(r => r.id === newRepair.id);
                             if (!exists) {
                                 carData[carKey].repairs.push(newRepair);
                             }
                         });
+                        
+                        // Обновляем статистику
+                        if (loadedData[carKey].model) carData[carKey].model = loadedData[carKey].model;
+                        if (loadedData[carKey].year) carData[carKey].year = loadedData[carKey].year;
+                        if (loadedData[carKey].color) carData[carKey].color = loadedData[carKey].color;
                     }
+                } else {
+                    // Если автомобиля нет, создаем его
+                    carData[carKey] = loadedData[carKey];
                 }
             });
             
@@ -1225,15 +1428,14 @@ function handleFileUpload(event) {
             updateCarInfo();
             updateRepairsCards();
             
-            const saved = await saveCarDataToFirestore();
-            showStatus(saved ? 'Данные успешно загружены из файла!' : 'Ошибка сохранения', saved ? 'success' : 'error');
+            // Сохраняем данные в Firestore
+            const saved = await saveAllCarDataToFirestore();
+            showStatus(saved ? 'Данные успешно загружены из файла и сохранены!' : 'Ошибка сохранения', saved ? 'success' : 'error');
         } catch (error) {
             showStatus('Ошибка при чтении файла: ' + error.message, 'error');
         }
     };
-    
     reader.readAsText(file);
-    event.target.value = '';
 }
 
 function exportJson() {
@@ -1250,6 +1452,35 @@ function exportJson() {
     }
 }
 
+function addSampleData() {
+    const sampleData = {
+        "focus": {
+            "repairs": [
+                {
+                    "id": Date.now(),
+                    "date": "01.08.2024",
+                    "mileage": 125000,
+                    "short_work": "Замена КПП",
+                    "total_price": 33000,
+                    "sto": "Альфатранс",
+                    "work_items": [
+                        {"name": "Замена коробки передач", "price": 20000},
+                        {"name": "Замена масла КПП", "price": 3000}
+                    ],
+                    "part_items": [
+                        {"name": "Коробка передач (БУ)", "manufacturer": "Ford", "article": "FOCUS-3-KPP", "quantity": 1, "price": 10000},
+                        {"name": "Масло КПП", "manufacturer": "Liqui Moly", "article": "LM1234", "quantity": 2, "price": 5000}
+                    ],
+                    "notes": "КПП с пробегом 70 тыс. км"
+                }
+            ]
+        }
+    };
+    
+    document.getElementById('jsonInput').value = JSON.stringify(sampleData, null, 2);
+    showStatus('Пример данных загружен в форму', 'success');
+}
+
 async function mergeData() {
     const jsonInput = document.getElementById('jsonInput');
     if (!jsonInput) return;
@@ -1263,28 +1494,68 @@ async function mergeData() {
     
     try {
         const newData = JSON.parse(jsonText);
+        let dataChanged = false;
         
         // Объединяем данные
         Object.keys(newData).forEach(carKey => {
             if (carData[carKey]) {
-                if (newData[carKey].repairs) {
+                // Если ремонты уже есть, добавляем новые
+                if (newData[carKey].repairs && Array.isArray(newData[carKey].repairs)) {
+                    if (!carData[carKey].repairs) {
+                        carData[carKey].repairs = [];
+                    }
+                    
+                    let repairsAdded = 0;
                     newData[carKey].repairs.forEach(newRepair => {
-                        const exists = carData[carKey].repairs.some(r => r.id === newRepair.id);
+                        // Проверяем по id или по дате+пробегу, если id нет
+                        const exists = carData[carKey].repairs.some(r => 
+                            r.id === newRepair.id || 
+                            (r.date === newRepair.date && r.mileage === newRepair.mileage && r.short_work === newRepair.short_work)
+                        );
                         if (!exists) {
                             carData[carKey].repairs.push(newRepair);
+                            repairsAdded++;
                         }
                     });
+                    
+                    if (repairsAdded > 0) {
+                        dataChanged = true;
+                        console.log(`Добавлено ${repairsAdded} ремонтов для ${carKey}`);
+                    }
                 }
+                
+                // Обновляем информацию об автомобиле
+                if (newData[carKey].model) carData[carKey].model = newData[carKey].model;
+                if (newData[carKey].year) carData[carKey].year = newData[carKey].year;
+                if (newData[carKey].color) carData[carKey].color = newData[carKey].color;
+                if (newData[carKey].totalSpent !== undefined) carData[carKey].totalSpent = newData[carKey].totalSpent;
+                if (newData[carKey].totalRepairs !== undefined) carData[carKey].totalRepairs = newData[carKey].totalRepairs;
+                if (newData[carKey].lastRepair) carData[carKey].lastRepair = newData[carKey].lastRepair;
+                
+            } else {
+                // Если автомобиля нет, создаем его
+                carData[carKey] = newData[carKey];
+                dataChanged = true;
+                console.log(`Создан новый автомобиль: ${carKey}`);
             }
         });
         
         jsonInput.value = '';
-        updateCarInfo();
-        updateRepairsCards();
         
-        const saved = await saveCarDataToFirestore();
-        showStatus(saved ? 'Данные успешно объединены!' : 'Ошибка сохранения', saved ? 'success' : 'error');
+        if (dataChanged) {
+            // Обновляем статистику для текущего автомобиля
+            updateCarInfo();
+            updateRepairsCards();
+            
+            // Сохраняем данные в Firestore
+            const saved = await saveAllCarDataToFirestore();
+            showStatus(saved ? 'Данные успешно объединены и сохранены!' : 'Ошибка сохранения', saved ? 'success' : 'error');
+        } else {
+            showStatus('Нет новых данных для добавления', 'info');
+        }
+        
     } catch (error) {
+        console.error('Ошибка при парсинге JSON:', error);
         showStatus('Ошибка при парсинге JSON: ' + error.message, 'error');
     }
 }
