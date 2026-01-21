@@ -48,28 +48,36 @@
 
     <!-- Основное приложение -->
     <div id="appContainer" class="container">
-        <!-- Кнопка выхода (видна только при авторизации) -->
-        <button id="logoutBtn" class="logout-btn" style="display: none;">
-            <i class="fas fa-sign-out-alt"></i> Выйти
-        </button>
-        
-        <!-- Кнопка входа (видна только в гостевом режиме) -->
-        <button id="loginBtnMain" class="login-btn">
-            <i class="fas fa-sign-in-alt"></i> Войти
-        </button>
-        
-        <!-- Индикатор режима -->
-        <div id="modeIndicator" class="mode-indicator">
-            <span id="modeText">Гостевой режим</span>
-        </div>
-        
-        <!-- Панель выбора темы -->
-        <div class="theme-selector">
-            <div class="theme-btn arch active" data-theme="arch" title="Arch Linux">
-                <i class="fab fa-linux"></i>
+        <!-- Панель управления (верхняя строка) -->
+        <div class="control-panel">
+            <!-- Кнопка выхода (видна только при авторизации) -->
+            <button id="logoutBtn" class="control-btn logout-btn" style="display: none;" title="Выйти">
+                <i class="fas fa-sign-out-alt"></i>
+                <span class="control-text">Выйти</span>
+            </button>
+            
+            <!-- Кнопка входа (видна только в гостевом режиме) -->
+            <button id="loginBtnMain" class="control-btn login-btn" title="Войти">
+                <i class="fas fa-sign-in-alt"></i>
+                <span class="control-text">Войти</span>
+            </button>
+            
+            <!-- Индикатор режима -->
+            <div id="modeIndicator" class="mode-indicator">
+                <i class="fas fa-user" id="modeIcon"></i>
+                <span id="modeText" class="mode-text">Гость</span>
             </div>
-            <div class="theme-btn rosepine" data-theme="rosepine" title="Rosé Pine">
-                <i class="fas fa-moon"></i>
+            
+            <!-- Панель выбора темы -->
+            <div class="theme-selector">
+                <div class="theme-btn arch active" data-theme="arch" title="Arch Linux">
+                    <i class="fab fa-linux"></i>
+                    <span class="theme-text">Arch</span>
+                </div>
+                <div class="theme-btn rosepine" data-theme="rosepine" title="Rosé Pine">
+                    <i class="fas fa-moon"></i>
+                    <span class="theme-text">Rose</span>
+                </div>
             </div>
         </div>
         
