@@ -14,7 +14,7 @@
 </head>
 <body class="theme-arch">
     <!-- Модальное окно для входа при попытке редактирования -->
-    <div id="authModal" class="modal" style="display: none;">
+    <div id="authModal" class="modal">
         <div class="modal-content">
             <h2 class="modal-title">
                 <i class="fas fa-lock"></i> Требуется авторизация
@@ -127,7 +127,7 @@
             <section class="car-info">
                 <h2 class="section-title car-info-header" id="carInfoToggle">
                     <div>
-                        <i class="fas fa-history"></i> История ремонтов
+                        <i class="fas fa-history"></i> Информация об автомобиле
                     </div>
                     <i class="fas fa-chevron-down"></i>
                 </h2>
@@ -160,21 +160,29 @@
                     </div>
                 </div>
                 
-                <div class="table-container">
-                    <table class="repairs-table">
-                        <thead>
-                            <tr>
-                                <th data-sort="date" data-order="desc">Дата <i class="fas fa-sort-up"></i></th>
-                                <th data-sort="mileage">Пробег <i class="fas fa-sort"></i></th>
-                                <th data-sort="short_work">Работа <i class="fas fa-sort"></i></th>
-                                <th data-sort="sto">СТО <i class="fas fa-sort"></i></th>
-                                <th data-sort="price">Стоимость <i class="fas fa-sort"></i></th>
-                            </tr>
-                        </thead>
-                        <tbody id="repairsBody">
-                            <!-- Данные загружаются через JavaScript -->
-                        </tbody>
-                    </table>
+                <!-- Сортировка для карточек -->
+                <div class="sort-controls">
+                    <div class="sort-label">Сортировать по:</div>
+                    <div class="sort-buttons">
+                        <button class="sort-btn active" data-sort="date" data-order="desc">
+                            <i class="fas fa-sort-amount-down"></i> Дата
+                        </button>
+                        <button class="sort-btn" data-sort="price" data-order="desc">
+                            <i class="fas fa-sort-amount-down"></i> Стоимость
+                        </button>
+                        <button class="sort-btn" data-sort="mileage" data-order="asc">
+                            <i class="fas fa-sort-amount-up"></i> Пробег
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Контейнер для карточек ремонтов -->
+                <div class="repairs-container" id="repairsContainer">
+                    <!-- Карточки будут генерироваться через JavaScript -->
+                    <div class="no-repairs">
+                        <i class="fas fa-tools"></i>
+                        <p>Нет данных о ремонтах</p>
+                    </div>
                 </div>
                 
                 <!-- Кнопка добавления ремонта -->
@@ -188,7 +196,7 @@
             <!-- Правая колонка: формы -->
             <section class="car-info">
                 <h2 class="section-title">
-                    <i class="fas fa-wrench"></i> Добавление / редактирование ремонта
+                    <i class="fas fa-wrench"></i> Редактор данных
                 </h2>
                 
                 <!-- Форма добавления ремонта -->
