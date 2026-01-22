@@ -33,6 +33,16 @@ let editingRepairId = null;
 let isGuestMode = true;
 let isEditingAction = false;
 
+// НОВОЕ: Для сохранения позиции скролла (Вариант 1 - сложный)
+let scrollPreservation = {
+    targetCardId: null,      // ID карточки, которую открываем
+    referenceType: null,     // 'top', 'bottom-adjusted'
+    distance: null,          // расстояние от верха/низа
+    previousCardId: null,    // ID предыдущей открытой карточки
+    previousCardRect: null,  // положение предыдущей карточки
+    previousCardHeight: null // высота предыдущей карточки
+};
+
 // ==================== АУТЕНТИФИКАЦИЯ ====================
 
 function showAuthModal() {
@@ -494,6 +504,14 @@ function setupEventListeners() {
             this.classList.add('active');
             currentCar = this.getAttribute('data-car');
             expandedRepairId = null;
+            scrollPreservation = {
+                targetCardId: null,
+                referenceType: null,
+                distance: null,
+                previousCardId: null,
+                previousCardRect: null,
+                previousCardHeight: null
+            };
             updateCarInfo();
             updateRepairsCards();
             updateCarStatsDisplay();
@@ -541,8 +559,15 @@ function setupEventListeners() {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
             const sortField = this.getAttribute('data-sort');
-            const sortOrder = this.getAttribute('data-order');
-            sortRepairsCards(sortField, sortOrder);
+            
+            if (currentSort === sortField) {
+                currentOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort = sortField;
+                currentOrder = 'desc';
+            }
+            
+            sortRepairsCards();
         });
     });
     
@@ -690,6 +715,142 @@ function updateCarStatsDisplay() {
     document.getElementById('lastRepair').textContent = car.lastRepair || 'Нет данных';
 }
 
+// ==================== СКРОЛЛ-СОХРАНЕНИЕ: ВАРИАНТ 1 (СЛОЖНЫЙ) ====================
+
+// НОВАЯ ФУНКЦИЯ: Расчет позиции для сохранения скролла
+function calculateScrollPreservation(targetCardId) {
+    // Если нет текущей открытой карточки - ничего не сохраняем
+    if (!expandedRepairId) {
+        scrollPreservation = {
+            targetCardId: null,
+            referenceType: null,
+            distance: null,
+            previousCardId: null,
+            previousCardRect: null,
+            previousCardHeight: null
+        };
+        return;
+    }
+    
+    // Находим текущую открытую карточку
+    const previousCard = document.querySelector(`[data-repair-id="${expandedRepairId}"]`);
+    if (!previousCard) return;
+    
+    // Находим целевую карточку (которую хотим открыть)
+    const targetCard = document.querySelector(`[data-repair-id="${targetCardId}"]`);
+    if (!targetCard) return;
+    
+    // Получаем положение карточек ОТНОСИТЕЛЬНО СТРАНИЦЫ (не окна)
+    const prevRect = previousCard.getBoundingClientRect();
+    const targetRect = targetCard.getBoundingClientRect();
+    
+    // Добавляем текущую позицию скролла для получения абсолютных координат
+    const currentScrollY = window.scrollY;
+    
+    const prevTopAbsolute = prevRect.top + currentScrollY;
+    const prevBottomAbsolute = prevRect.bottom + currentScrollY;
+    const targetTopAbsolute = targetRect.top + currentScrollY;
+    const targetBottomAbsolute = targetRect.bottom + currentScrollY;
+    
+    // Определяем, где находится целевая карточка относительно текущей
+    const isBelow = targetTopAbsolute > prevBottomAbsolute;
+    const isAbove = targetBottomAbsolute < prevTopAbsolute;
+    
+    scrollPreservation.previousCardId = expandedRepairId;
+    scrollPreservation.previousCardRect = prevRect;
+    scrollPreservation.targetCardId = targetCardId;
+    
+    // Также сохраняем ВЫСОТУ старой карточки (для коррекции)
+    const previousCardHeight = prevRect.height;
+    
+    if (isBelow) {
+        // Если целевая карточка НИЖЕ - сохраняем ее абсолютное положение СНИЗУ
+        // Но учитываем, что старая карточка закроется и все сдвинется вверх на previousCardHeight
+        const distanceFromViewportBottom = window.innerHeight - targetRect.bottom;
+        scrollPreservation.referenceType = 'bottom-adjusted';
+        scrollPreservation.distance = distanceFromViewportBottom;
+        scrollPreservation.previousCardHeight = previousCardHeight;
+        
+    } else if (isAbove) {
+        // Если целевая карточка ВЫШЕ - сохраняем ее абсолютное положение СВЕРХУ
+        // Старая карточка ниже, поэтому ее закрытие не влияет на позицию
+        const distanceFromViewportTop = targetRect.top;
+        scrollPreservation.referenceType = 'top';
+        scrollPreservation.distance = distanceFromViewportTop;
+        scrollPreservation.previousCardHeight = previousCardHeight;
+        
+    } else {
+        // Если карточки перекрываются или на одном уровне - используем верх
+        const distanceFromViewportTop = targetRect.top;
+        scrollPreservation.referenceType = 'top';
+        scrollPreservation.distance = distanceFromViewportTop;
+        scrollPreservation.previousCardHeight = previousCardHeight;
+    }
+}
+
+// НОВАЯ ФУНКЦИЯ: Восстановление позиции скролла
+function restoreScrollPosition() {
+    if (!scrollPreservation.targetCardId || !scrollPreservation.referenceType) return;
+    
+    setTimeout(() => {
+        const targetCard = document.querySelector(`[data-repair-id="${scrollPreservation.targetCardId}"]`);
+        if (!targetCard) return;
+        
+        const currentScrollY = window.scrollY;
+        const targetRect = targetCard.getBoundingClientRect();
+        
+        let targetScrollY;
+        
+        if (scrollPreservation.referenceType === 'bottom-adjusted') {
+            // Для карточек НИЖЕ: восстанавливаем позицию с учетом того, что
+            // старая карточка закрылась и все элементы поднялись на ее высоту
+            
+            // Желаемое положение от низа окна + коррекция на высоту старой карточки
+            const desiredDistanceFromBottom = scrollPreservation.distance;
+            
+            // Рассчитываем, где должна быть нижняя граница карточки
+            const desiredBottomInViewport = window.innerHeight - desiredDistanceFromBottom;
+            
+            // Вычисляем нужную позицию скролла
+            targetScrollY = currentScrollY + targetRect.bottom - desiredBottomInViewport;
+            
+            // Коррекция: если старая карточка была выше и закрылась,
+            // новая карточка фактически поднялась выше, чем была
+            // Поэтому немного поднимаем скролл
+            targetScrollY = Math.max(0, targetScrollY - (scrollPreservation.previousCardHeight || 0) * 0.3);
+            
+        } else if (scrollPreservation.referenceType === 'top') {
+            // Для карточек ВЫШЕ: просто восстанавливаем позицию сверху
+            const desiredDistanceFromTop = scrollPreservation.distance;
+            targetScrollY = currentScrollY + targetRect.top - desiredDistanceFromTop;
+            
+        } else {
+            // Для остальных случаев
+            targetScrollY = currentScrollY + targetRect.top - (scrollPreservation.distance || 0);
+        }
+        
+        // Ограничиваем скролл разумными пределами
+        targetScrollY = Math.max(0, Math.min(targetScrollY, document.body.scrollHeight - window.innerHeight));
+        
+        // Плавный скролл к вычисленной позиции
+        window.scrollTo({
+            top: targetScrollY,
+            behavior: 'smooth'
+        });
+        
+        // Сбрасываем сохраненные данные
+        scrollPreservation = {
+            targetCardId: null,
+            referenceType: null,
+            distance: null,
+            previousCardId: null,
+            previousCardRect: null,
+            previousCardHeight: null
+        };
+        
+    }, 100);
+}
+
 function updateRepairsCards() {
     const car = carData[currentCar];
     const repairsContainer = document.getElementById('repairsContainer');
@@ -793,55 +954,31 @@ function updateRepairsCards() {
             }
             
             const repairId = parseInt(this.getAttribute('data-repair-id'));
-            const wasExpanded = expandedRepairId === repairId;
-            const previousExpandedId = expandedRepairId;
             
-            if (wasExpanded) {
+            // Если кликаем на уже открытую карточку - закрываем её
+            if (expandedRepairId === repairId) {
                 expandedRepairId = null;
             } else {
-                expandedRepairId = repairId;
+                // Рассчитываем сохранение позиции перед открытием новой карточки
+                calculateScrollPreservation(repairId);
                 
-                // Если открываем новую карточку без закрытия предыдущей - мгновенный скролл к верху
-                if (previousExpandedId && previousExpandedId !== repairId && window.innerWidth <= 768) {
-                    // Сохраняем текущую позицию скролла
-                    const scrollBefore = window.scrollY;
-                    
-                    updateRepairsCards();
-                    
-                    // Мгновенный скролл к новой карточке
-                    setTimeout(() => {
-                        const expandedCard = document.querySelector(`.repair-card[data-repair-id="${repairId}"]`);
-                        if (expandedCard) {
-                            const cardTop = expandedCard.getBoundingClientRect().top + window.scrollY;
-                            window.scrollTo({
-                                top: cardTop,
-                                behavior: 'auto' // Мгновенно, без анимации
-                            });
-                        }
-                    }, 10);
-                    return; // Выходим раньше, чтобы не вызвать updateRepairsCards дважды
-                }
+                // Открываем новую карточку
+                expandedRepairId = repairId;
             }
             
+            // Перерисовываем карточки
             updateRepairsCards();
             
-            // Только для первого открытия карточки или при закрытии - оставляем плавный скролл
-            if (!wasExpanded && !previousExpandedId && window.innerWidth <= 768) {
-                setTimeout(() => {
-                    const expandedCard = document.querySelector(`.repair-card[data-repair-id="${repairId}"]`);
-                    if (expandedCard) {
-                        expandedCard.scrollIntoView({ 
-                            behavior: 'smooth', 
-                            block: 'start'
-                        });
-                    }
-                }, 100);
+            // Восстанавливаем позицию скролла после перерисовки
+            if (scrollPreservation.targetCardId === repairId) {
+                restoreScrollPosition();
             }
         });
         
         repairsContainer.appendChild(card);
     });
     
+    // Добавляем обработчики для кнопок редактирования
     setTimeout(() => {
         document.querySelectorAll('.edit-repair-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
@@ -1376,10 +1513,7 @@ function sortRepairs(repairs, sortBy, order) {
     });
 }
 
-function sortRepairsCards(sortField, sortOrder) {
-    currentSort = sortField;
-    currentOrder = sortOrder;
-    
+function sortRepairsCards() {
     updateSortButtons();
     updateRepairsCards();
 }
@@ -1476,7 +1610,7 @@ function handleFileUpload(e) {
             showStatus(saved ? 'Данные успешно загружены из файла и сохранены!' : 'Ошибка сохранения', saved ? 'success' : 'error');
         } catch (error) {
             showStatus('Ошибка при чтении файла: ' + error.message, 'error');
-        }
+    }
     };
     reader.readAsText(file);
 }
