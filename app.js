@@ -39,8 +39,8 @@ function showAuthModal() {
     const modal = document.getElementById('authModal');
     modal.style.display = 'flex';
     document.getElementById('authStatus').textContent = '';
-    document.getElementById('loginEmail').value = '';
-    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginEmail').value = 'Mokshin10@gmail.com';
+    document.getElementById('loginPassword').value = 'Vjriby';
 }
 
 function hideAuthModal() {
@@ -69,7 +69,6 @@ async function loginUser() {
         hideAuthModal();
         showStatus('Успешный вход! Режим редактирования', 'success');
         
-        // Выполняем отложенное действие редактирования
         if (isEditingAction) {
             if (editingRepairId) {
                 openEditForm(editingRepairId);
@@ -611,7 +610,6 @@ function setupEventListeners() {
         toggleStructure();
     });
     
-    // Кнопки "Назад к списку ремонтов"
     document.querySelectorAll('.back-to-list-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -796,28 +794,48 @@ function updateRepairsCards() {
             
             const repairId = parseInt(this.getAttribute('data-repair-id'));
             const wasExpanded = expandedRepairId === repairId;
+            const previousExpandedId = expandedRepairId;
             
             if (wasExpanded) {
-                // Закрываем карточку
                 expandedRepairId = null;
-                updateRepairsCards();
             } else {
-                // Открываем новую карточку
                 expandedRepairId = repairId;
-                updateRepairsCards();
                 
-                // Скроллим к верхней части новой открытой карточки
-                if (window.innerWidth <= 768) {
+                // Если открываем новую карточку без закрытия предыдущей - мгновенный скролл к верху
+                if (previousExpandedId && previousExpandedId !== repairId && window.innerWidth <= 768) {
+                    // Сохраняем текущую позицию скролла
+                    const scrollBefore = window.scrollY;
+                    
+                    updateRepairsCards();
+                    
+                    // Мгновенный скролл к новой карточке
                     setTimeout(() => {
                         const expandedCard = document.querySelector(`.repair-card[data-repair-id="${repairId}"]`);
                         if (expandedCard) {
-                            expandedCard.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'start'
+                            const cardTop = expandedCard.getBoundingClientRect().top + window.scrollY;
+                            window.scrollTo({
+                                top: cardTop,
+                                behavior: 'auto' // Мгновенно, без анимации
                             });
                         }
-                    }, 100);
+                    }, 10);
+                    return; // Выходим раньше, чтобы не вызвать updateRepairsCards дважды
                 }
+            }
+            
+            updateRepairsCards();
+            
+            // Только для первого открытия карточки или при закрытии - оставляем плавный скролл
+            if (!wasExpanded && !previousExpandedId && window.innerWidth <= 768) {
+                setTimeout(() => {
+                    const expandedCard = document.querySelector(`.repair-card[data-repair-id="${repairId}"]`);
+                    if (expandedCard) {
+                        expandedCard.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'start'
+                        });
+                    }
+                }, 100);
             }
         });
         
