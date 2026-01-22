@@ -1,0 +1,1708 @@
+/* Базовые стили и переменные тем */
+:root {
+    --current-theme: 'arch';
+    --font-primary: 'Segoe UI', 'Noto Sans', system-ui, sans-serif;
+    --container-padding: clamp(15px, 4vw, 25px);
+    --card-padding: clamp(16px, 3vw, 20px);
+    --gap-small: clamp(8px, 2vw, 12px);
+    --gap-medium: clamp(12px, 3vw, 20px);
+    --gap-large: clamp(16px, 4vw, 25px);
+    /* Новые переменные для модального окна ремонта */
+    --modal-bg: var(--surface);
+    --modal-border: var(--border);
+    --modal-header-bg: rgba(0, 0, 0, 0.3);
+    --modal-close-size: 30px;
+}
+
+/* Тема Arch Linux (текущая) */
+.theme-arch {
+    --bg: #0c0d11;
+    --surface: #1a1b26;
+    --primary: #7aa2f7;
+    --secondary: #bb9af7;
+    --text: #a9b1d6;
+    --text-light: #c0caf5;
+    --border: #292e42;
+    --success: #9ece6a;
+    --warning: #e0af68;
+    --error: #f7768e;
+    --accent: #7aa2f7;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --selected-bg: rgba(122, 162, 247, 0.15);
+    --selected-border: rgba(122, 162, 247, 0.4);
+}
+
+/* Тема Rosé Pine */
+.theme-rosepine {
+    --bg: #191724;
+    --surface: #1f1d2e;
+    --primary: #eb6f92;
+    --secondary: #9ccfd8;
+    --text: #e0def4;
+    --text-light: #f6c177;
+    --border: #393552;
+    --success: #31748f;
+    --warning: #f6c177;
+    --error: #eb6f92;
+    --accent: #c4a7e7;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    --selected-bg: rgba(235, 111, 146, 0.15);
+    --selected-border: rgba(235, 111, 146, 0.4);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-primary);
+    background-color: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: var(--container-padding);
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-large);
+}
+
+/* Компактная панель управления */
+.control-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: nowrap;
+    margin-bottom: var(--gap-medium);
+    padding: 10px;
+    background-color: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+}
+
+.control-panel::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
+}
+
+.control-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.3s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: fit-content;
+}
+
+.control-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.logout-btn:hover {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+.login-btn:hover {
+    border-color: var(--success);
+    color: var(--success);
+}
+
+.control-text {
+    display: inline;
+}
+
+@media (max-width: 768px) {
+    .control-text {
+        display: none;
+    }
+    
+    .control-btn {
+        padding: 8px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+    }
+    
+    .control-btn i {
+        margin: 0;
+    }
+}
+
+/* Индикатор режима - компактный */
+.mode-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+    min-width: fit-content;
+}
+
+.mode-guest {
+    color: var(--warning);
+    border-color: var(--warning);
+}
+
+.mode-authorized {
+    color: var(--success);
+    border-color: var(--success);
+}
+
+.mode-text {
+    display: inline;
+}
+
+@media (max-width: 768px) {
+    .mode-text {
+        display: none;
+    }
+    
+    .mode-indicator {
+        padding: 8px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        justify-content: center;
+    }
+}
+
+#modeIcon {
+    font-size: 14px;
+}
+
+/* Панель выбора темы - компактная */
+.theme-selector {
+    display: flex;
+    gap: 8px;
+    background-color: var(--surface);
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    flex-shrink: 0;
+}
+
+.theme-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.theme-btn:hover {
+    transform: scale(1.1);
+    border-color: var(--primary);
+}
+
+.theme-btn.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+}
+
+.theme-btn.arch {
+    background: linear-gradient(135deg, #0c0d11 0%, #1a1b26 100%);
+    color: #7aa2f7;
+}
+
+.theme-btn.rosepine {
+    background: linear-gradient(135deg, #191724 0%, #1f1d2e 100%);
+    color: #eb6f92;
+}
+
+.theme-text {
+    display: none;
+}
+
+@media (min-width: 769px) {
+    .theme-text {
+        display: inline;
+        margin-left: 4px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    
+    .theme-btn {
+        width: auto;
+        padding: 0 10px;
+        border-radius: 20px;
+        gap: 4px;
+    }
+}
+
+/* Модальное окно аутентификации */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background-color: var(--surface);
+    border-radius: 12px;
+    padding: clamp(20px, 5vw, 30px);
+    max-width: min(400px, 90vw);
+    width: 90%;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    animation: slideUp 0.3s ease;
+    position: relative;
+    z-index: 2001;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-title {
+    color: var(--text-light);
+    margin-bottom: 15px;
+    text-align: center;
+    font-size: clamp(16px, 4vw, 18px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.modal-text {
+    color: var(--text);
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: clamp(13px, 3vw, 14px);
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.auth-info {
+    margin-top: 15px;
+    text-align: center;
+    font-size: clamp(11px, 2vw, 12px);
+    color: var(--text);
+    padding: 8px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+}
+
+.modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: var(--modal-close-size);
+    height: var(--modal-close-size);
+    border-radius: 50%;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    background-color: var(--primary);
+    color: var(--bg);
+    border-color: var(--primary);
+}
+
+/* Шапка приложения */
+.header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-medium);
+    padding-bottom: var(--gap-medium);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--gap-small);
+}
+
+@media (min-width: 769px) {
+    .header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-small);
+    flex-shrink: 0;
+}
+
+.logo-icon {
+    color: var(--primary);
+    font-size: clamp(20px, 5vw, 24px);
+}
+
+.logo-text {
+    font-size: clamp(18px, 4vw, 20px);
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+.logo-subtext {
+    font-size: clamp(12px, 3vw, 13px);
+    color: var(--text);
+}
+
+/* Выбор автомобиля */
+.car-selector {
+    display: flex;
+    gap: var(--gap-small);
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+@media (min-width: 769px) {
+    .car-selector {
+        justify-content: flex-end;
+        width: auto;
+    }
+}
+
+.car-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--card-padding);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background-color: var(--surface);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: clamp(120px, 30vw, 180px);
+    flex: 1 1 auto;
+    max-width: 180px;
+}
+
+.car-option:hover {
+    border-color: var(--primary);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow);
+}
+
+.car-option.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 15px rgba(122, 162, 247, 0.3);
+}
+
+.theme-rosepine .car-option.active {
+    box-shadow: 0 0 15px rgba(235, 111, 146, 0.3);
+}
+
+.car-image {
+    width: 100%;
+    height: clamp(60px, 15vw, 70px);
+    object-fit: contain;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.car-name {
+    font-weight: 600;
+    color: var(--text-light);
+    margin-bottom: 4px;
+    text-align: center;
+    font-size: clamp(13px, 3vw, 14px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.car-details {
+    font-size: clamp(11px, 2vw, 12px);
+    color: var(--text);
+    text-align: center;
+}
+
+/* Поисковая строка */
+.search-container {
+    display: flex;
+    margin: var(--gap-small) 0 var(--gap-medium);
+    position: relative;
+}
+
+.search-input {
+    flex-grow: 1;
+    padding: 12px 45px 12px 16px;
+    background-color: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-light);
+    font-size: clamp(13px, 3vw, 14px);
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.search-input:focus {
+    border-color: var(--primary);
+}
+
+.search-icon {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--primary);
+    pointer-events: none;
+}
+
+/* Основное содержимое */
+.main-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-large);
+}
+
+@media (min-width: 769px) {
+    .main-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--gap-large);
+    }
+}
+
+.car-info {
+    background-color: var(--surface);
+    border-radius: 12px;
+    padding: var(--card-padding);
+    border: 1px solid var(--border);
+}
+
+.section-title {
+    color: var(--text-light);
+    font-size: clamp(15px, 4vw, 16px);
+    margin-bottom: var(--gap-medium);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Статистика автомобиля */
+.car-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+    gap: var(--gap-small);
+    margin-bottom: var(--gap-medium);
+}
+
+.stat-item {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: var(--gap-small);
+    border-radius: 8px;
+    border-left: 4px solid var(--primary);
+}
+
+.stat-label {
+    font-size: clamp(11px, 2vw, 12px);
+    color: var(--text);
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: clamp(14px, 3vw, 16px);
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+/* Сортировка для карточек */
+.sort-controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-small);
+    margin-bottom: var(--gap-medium);
+    padding: var(--gap-small);
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.sort-label {
+    font-size: clamp(12px, 3vw, 13px);
+    color: var(--text);
+    font-weight: 500;
+}
+
+.sort-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-small);
+}
+
+.sort-btn {
+    flex: 1 1 auto;
+    min-width: fit-content;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: clamp(11px, 2vw, 12px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s;
+}
+
+.sort-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.sort-btn.active {
+    background-color: var(--primary);
+    color: var(--bg);
+    border-color: var(--primary);
+}
+
+.sort-btn.active i {
+    transition: transform 0.3s ease;
+}
+
+.sort-btn.active[data-order="asc"] i {
+    transform: rotate(180deg);
+}
+
+.sort-btn.active[data-order="desc"] i {
+    transform: rotate(0deg);
+}
+
+/* Контейнер для карточек ремонтов */
+.repairs-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-medium);
+    width: 100%;
+}
+
+/* Карточка ремонта */
+.repair-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: var(--card-padding);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    box-shadow: var(--card-shadow);
+    width: 100%;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.repair-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.repair-card.expanded {
+    background-color: var(--selected-bg);
+    border-color: var(--selected-border);
+}
+
+.repair-card.selected {
+    background-color: var(--selected-bg);
+    border-color: var(--selected-border);
+    box-shadow: 0 0 0 2px var(--selected-border), 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Шапка карточки */
+.repair-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--gap-small);
+    gap: var(--gap-small);
+    flex-wrap: wrap;
+}
+
+.repair-card-date {
+    font-size: clamp(13px, 3vw, 14px);
+    font-weight: 600;
+    color: var(--text-light);
+    white-space: nowrap;
+}
+
+.repair-card-mileage {
+    font-size: clamp(12px, 2vw, 13px);
+    color: var(--warning);
+    background-color: rgba(224, 175, 104, 0.1);
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.repair-card-work {
+    font-size: clamp(14px, 3vw, 15px);
+    font-weight: 600;
+    color: var(--text-light);
+    margin-bottom: var(--gap-small);
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+.repair-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--gap-small);
+    margin-top: var(--gap-small);
+    padding-top: var(--gap-small);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.repair-card-sto {
+    font-size: clamp(12px, 2vw, 13px);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.repair-card-price {
+    font-size: clamp(14px, 3vw, 15px);
+    font-weight: 600;
+    color: var(--success);
+}
+
+/* Детали карточки */
+.repair-card-details {
+    margin-top: var(--gap-medium);
+    padding-top: var(--gap-medium);
+    border-top: 1px solid var(--border);
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 1000px;
+    }
+}
+
+/* Детали ремонта */
+.details-section {
+    margin-bottom: var(--gap-medium);
+}
+
+.details-title {
+    color: var(--text-light);
+    font-size: clamp(13px, 3vw, 14px);
+    margin-bottom: 8px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Работы - таблица */
+.works-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: clamp(12px, 2.5vw, 13px);
+    margin-bottom: var(--gap-medium);
+}
+
+.works-table th {
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--text-light);
+    text-align: left;
+    padding: 10px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+}
+
+.works-table td {
+    padding: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    word-wrap: break-word;
+}
+
+.works-table tr:last-child td {
+    border-bottom: none;
+}
+
+.works-table tfoot tr {
+    border-top: 1px solid var(--border);
+}
+
+.works-table tfoot td {
+    padding-top: 12px;
+    font-weight: 600;
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+.work-price {
+    color: var(--success);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Запчасти - адаптивный дизайн */
+.parts-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-small);
+    margin-bottom: var(--gap-medium);
+}
+
+/* Десктопная версия таблицы запчастей */
+.desktop-parts-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: clamp(12px, 2.5vw, 13px);
+    margin-bottom: var(--gap-medium);
+}
+
+.desktop-parts-table th {
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--text-light);
+    text-align: left;
+    padding: 10px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.desktop-parts-table td {
+    padding: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    word-wrap: break-word;
+}
+
+.desktop-parts-table tr:last-child td {
+    border-bottom: none;
+}
+
+.desktop-parts-table tfoot tr {
+    border-top: 1px solid var(--border);
+}
+
+.desktop-parts-table tfoot td {
+    padding-top: 12px;
+    font-weight: 600;
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+.part-price {
+    color: var(--success);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Мобильная версия запчастей (карточки) */
+.part-item-mobile {
+    background-color: rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: var(--gap-small);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.part-name-mobile {
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: clamp(13px, 3vw, 14px);
+    word-break: break-word;
+}
+
+.part-details-mobile {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: clamp(11px, 2.5vw, 12px);
+    color: var(--text);
+}
+
+.part-detail-mobile {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.part-price-mobile {
+    color: var(--success);
+    font-weight: 600;
+    font-size: clamp(13px, 3vw, 14px);
+    text-align: right;
+    margin-top: 4px;
+}
+
+/* Скрываем десктопную таблицу на мобильных и мобильную версию на десктопе */
+@media (max-width: 768px) {
+    .desktop-parts-table {
+        display: none;
+    }
+    
+    .parts-list {
+        display: flex;
+    }
+}
+
+@media (min-width: 769px) {
+    .parts-list {
+        display: none;
+    }
+    
+    .desktop-parts-table {
+        display: table;
+    }
+}
+
+.details-total {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    margin-top: var(--gap-medium);
+    border: 1px solid var(--border);
+}
+
+@media (min-width: 480px) {
+    .details-total {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+}
+
+.total-label {
+    color: var(--text-light);
+    font-weight: 600;
+    font-size: clamp(13px, 3vw, 14px);
+}
+
+.total-value {
+    color: var(--success);
+    font-size: clamp(14px, 3vw, 16px);
+    font-weight: 600;
+}
+
+.repair-notes {
+    background-color: rgba(224, 175, 104, 0.1);
+    border: 1px solid var(--warning);
+    border-radius: 8px;
+    padding: var(--gap-small);
+    margin-top: var(--gap-small);
+    font-size: clamp(11px, 2vw, 12px);
+    color: var(--warning);
+    word-wrap: break-word;
+}
+
+/* Кнопки действий в детализации */
+.repair-actions {
+    display: flex;
+    gap: var(--gap-small);
+    margin-top: var(--gap-medium);
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+    .repair-actions {
+        flex-direction: column;
+    }
+    
+    .repair-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Нет ремонтов */
+.no-repairs {
+    text-align: center;
+    padding: var(--gap-large);
+    color: var(--text);
+    font-style: italic;
+    font-size: clamp(13px, 3vw, 14px);
+}
+
+.no-repairs i {
+    font-size: 48px;
+    color: var(--text);
+    opacity: 0.3;
+    margin-bottom: var(--gap-small);
+}
+
+/* Формы */
+.add-repair-form, .edit-repair-form {
+    background-color: var(--surface);
+    border-radius: 12px;
+    padding: var(--card-padding);
+    border: 1px solid var(--border);
+    margin-top: var(--gap-medium);
+    display: none;
+}
+
+.add-repair-form.active, .edit-repair-form.active {
+    display: block;
+}
+
+.form-group {
+    margin-bottom: var(--gap-medium);
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-light);
+    font-weight: 500;
+    font-size: clamp(13px, 3vw, 14px);
+}
+
+.form-input, .form-textarea {
+    width: 100%;
+    padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 14px);
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-light);
+    font-size: clamp(13px, 3vw, 14px);
+    outline: none;
+    transition: border-color 0.3s;
+    box-sizing: border-box;
+}
+
+.form-textarea {
+    min-height: 100px;
+    resize: vertical;
+    font-family: var(--font-primary);
+    font-size: clamp(12px, 2vw, 13px);
+}
+
+.form-input:focus, .form-textarea:focus {
+    border-color: var(--primary);
+}
+
+/* Кнопки */
+.btn {
+    padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px);
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: clamp(12px, 2vw, 13px);
+    min-height: 40px;
+    box-sizing: border-box;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: var(--bg);
+}
+
+.btn-primary:hover {
+    background-color: var(--secondary);
+}
+
+.btn-secondary {
+    background-color: var(--surface);
+    color: var(--text-light);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+    border-color: var(--primary);
+}
+
+.btn-success {
+    background-color: var(--success);
+    color: var(--bg);
+}
+
+.btn-success:hover {
+    background-color: #8ab85f;
+}
+
+.btn-warning {
+    background-color: var(--warning);
+    color: var(--bg);
+}
+
+.btn-warning:hover {
+    background-color: #d19a57;
+}
+
+.btn-danger {
+    background-color: var(--error);
+    color: var(--bg);
+}
+
+.btn-danger:hover {
+    background-color: #e6677e;
+}
+
+/* Кнопки файлов */
+.file-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-small);
+    margin-top: var(--gap-medium);
+}
+
+@media (min-width: 480px) {
+    .file-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .file-actions .btn {
+        flex: 1 1 auto;
+        min-width: fit-content;
+    }
+}
+
+/* Пример структуры данных */
+.data-example {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: var(--gap-medium);
+    border-radius: 8px;
+    margin-bottom: var(--gap-small);
+    border: 1px solid var(--border);
+    overflow-x: auto;
+}
+
+.data-example code {
+    color: var(--success);
+    font-size: clamp(11px, 2vw, 12px);
+    line-height: 1.4;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.data-example-title {
+    color: var(--warning);
+    margin-bottom: 8px;
+    font-size: clamp(12px, 2vw, 13px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Индикатор загрузки/сохранения */
+.status-message {
+    padding: var(--gap-small);
+    border-radius: 8px;
+    margin-top: var(--gap-medium);
+    display: none;
+    text-align: center;
+    font-size: clamp(12px, 2vw, 13px);
+}
+
+.status-success {
+    background-color: rgba(158, 206, 106, 0.2);
+    border: 1px solid var(--success);
+    color: var(--success);
+    display: block;
+}
+
+.theme-rosepine .status-success {
+    background-color: rgba(49, 116, 143, 0.2);
+}
+
+.status-error {
+    background-color: rgba(247, 118, 142, 0.2);
+    border: 1px solid var(--error);
+    color: var(--error);
+    display: block;
+}
+
+.theme-rosepine .status-error {
+    background-color: rgba(235, 111, 146, 0.2);
+}
+
+/* Анимация для сворачивания/разворачивания */
+.structure-collapsed .fa-chevron-down {
+    transform: rotate(-90deg);
+    transition: transform 0.3s ease;
+}
+
+.structure-expanded .fa-chevron-down {
+    transform: rotate(0deg);
+    transition: transform 0.3s ease;
+}
+
+#structureContent {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+#structureContent.show {
+    display: block;
+    animation: slideDown 0.3s ease;
+}
+
+/* Сообщение о пустом результате поиска */
+.no-results {
+    text-align: center;
+    padding: var(--gap-large);
+    color: var(--text);
+    font-style: italic;
+    font-size: clamp(13px, 3vw, 14px);
+}
+
+.highlight {
+    background-color: rgba(122, 162, 247, 0.2);
+    color: var(--text-light);
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.theme-rosepine .highlight {
+    background-color: rgba(235, 111, 146, 0.2);
+}
+
+/* Индикатор результатов поиска */
+.search-results-info {
+    background-color: rgba(122, 162, 247, 0.1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: var(--gap-small);
+    margin-top: var(--gap-small);
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-small);
+    align-items: center;
+}
+
+@media (min-width: 480px) {
+    .search-results-info {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+}
+
+.theme-rosepine .search-results-info {
+    background-color: rgba(235, 111, 146, 0.1);
+}
+
+.clear-search {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: clamp(11px, 2vw, 12px);
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.clear-search:hover {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+/* Футер */
+.footer {
+    margin-top: var(--gap-large);
+    text-align: center;
+    padding-top: var(--gap-medium);
+    border-top: 1px solid var(--border);
+    font-size: clamp(11px, 2vw, 12px);
+    color: var(--text);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Утилиты */
+.text-center {
+    text-align: center;
+}
+
+.mt-20 {
+    margin-top: 20px;
+}
+
+/* Сворачиваемый блок информации об авто */
+.car-info-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+}
+
+.car-info-header i {
+    transition: transform 0.3s ease;
+    color: var(--primary);
+}
+
+.car-info-header.collapsed i {
+    transform: rotate(-90deg);
+}
+
+#carStats {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+#carStats.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0;
+    padding: 0;
+    border: none;
+}
+
+/* Модальное окно для деталей ремонта (мобильная версия) */
+.repair-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(12, 13, 17, 0.95);
+    z-index: 1500;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 0;
+    overflow-y: auto;
+}
+
+.theme-rosepine .repair-modal {
+    background-color: rgba(25, 23, 36, 0.95);
+}
+
+.repair-modal-close-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1600;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.repair-modal-close {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    position: relative;
+    z-index: 1601;
+}
+
+.repair-modal-close:hover {
+    background-color: var(--primary);
+    color: var(--bg);
+    border-color: var(--primary);
+    transform: scale(1.1);
+}
+
+.repair-modal-content {
+    background-color: rgba(122, 162, 247, 0.1);
+    border: 1px solid var(--primary);
+    border-radius: 12px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    position: relative;
+    animation: modalSlideUp 0.3s ease;
+    margin: 60px 20px 20px;
+    z-index: 1501;
+}
+
+@keyframes modalSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.repair-modal-body {
+    padding: 20px;
+}
+
+/* Шапка модального окна */
+.repair-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.repair-modal-date {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+.repair-modal-mileage {
+    font-size: 14px;
+    color: var(--warning);
+    background-color: rgba(224, 175, 104, 0.1);
+    padding: 6px 12px;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+.repair-modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-light);
+    margin-bottom: 15px;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.repair-modal-sto {
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    border-left: 4px solid var(--primary);
+}
+
+/* Заголовки секций в модальном окне */
+.modal-details-title {
+    color: var(--primary);
+    font-size: 14px;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+
+/* Работы в модальном окне */
+.modal-works-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 20px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.modal-works-table th {
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--text-light);
+    text-align: left;
+    padding: 12px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-works-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.modal-works-table tr:last-child td {
+    border-bottom: none;
+}
+
+.modal-works-table tfoot tr {
+    border-top: 1px solid var(--border);
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+.modal-works-table tfoot td {
+    padding: 12px;
+    font-weight: 600;
+}
+
+.modal-work-price {
+    color: var(--success);
+    font-weight: 600;
+    text-align: right;
+}
+
+/* Запчасти в модальном окне - ОБНОВЛЕНО: все в одном контейнере */
+.modal-parts-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.modal-part-item {
+    background-color: rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.modal-part-name {
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 14px;
+    word-break: break-word;
+}
+
+.modal-part-details-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.modal-part-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text);
+}
+
+.modal-part-detail {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.modal-part-price {
+    color: var(--success);
+    font-weight: 600;
+    font-size: 14px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Итог в модальном окне */
+.modal-details-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+}
+
+.modal-total-label {
+    color: var(--text-light);
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.modal-total-value {
+    color: var(--success);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* Примечания в модальном окне */
+.modal-notes {
+    background-color: rgba(224, 175, 104, 0.1);
+    border: 1px solid var(--warning);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 15px 0;
+    font-size: 12px;
+    color: var(--warning);
+    word-wrap: break-word;
+}
+
+/* Кнопки в модальном окне */
+.modal-repair-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: flex-end;
+}
+
+/* Для десктопной версии оставляем старый стиль развертывания */
+@media (min-width: 769px) {
+    .repair-modal {
+        display: none !important;
+    }
+    
+    .repair-card.expanded .repair-card-details {
+        display: block;
+    }
+}
+
+/* Адаптивность для очень маленьких экранов */
+@media (max-width: 480px) {
+    .car-stats {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .sort-buttons {
+        flex-direction: column;
+    }
+    
+    .repair-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .repair-card-date, .repair-card-mileage {
+        width: 100%;
+        text-align: left;
+    }
+    
+    .repair-card-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .repair-actions {
+        width: 100%;
+    }
+    
+    .repair-modal-content {
+        margin: 60px 10px 10px;
+    }
+}
+
+/* Медиа-запросы для iPhone */
+@media only screen and (max-width: 768px) and (orientation: portrait) {
+    .car-info {
+        padding: clamp(12px, 3vw, 16px);
+    }
+    
+    .repair-card {
+        padding: clamp(14px, 3.5vw, 18px);
+    }
+    
+    .btn {
+        min-height: 44px;
+    }
+    
+    .form-input, .form-textarea {
+        font-size: 16px;
+        padding: 12px 16px;
+    }
+    
+    .repair-modal-close-container {
+        top: max(20px, env(safe-area-inset-top));
+        right: max(20px, env(safe-area-inset-right));
+    }
+}
+
+/* Поддержка Safe Area для iPhone X и новее */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: max(var(--container-padding), env(safe-area-inset-left));
+        padding-right: max(var(--container-padding), env(safe-area-inset-right));
+        padding-bottom: max(var(--container-padding), env(safe-area-inset-bottom));
+    }
+    
+    .repair-modal-content {
+        margin-top: max(60px, calc(60px + env(safe-area-inset-top)));
+        margin-bottom: max(20px, calc(20px + env(safe-area-inset-bottom)));
+        margin-left: max(20px, calc(20px + env(safe-area-inset-left)));
+        margin-right: max(20px, calc(20px + env(safe-area-inset-right)));
+    }
+}
