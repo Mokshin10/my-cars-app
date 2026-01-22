@@ -32,6 +32,7 @@ let expandedRepairId = null;
 let editingRepairId = null;
 let isGuestMode = true;
 let isEditingAction = false;
+let selectedRepairId = null;
 
 // ==================== АУТЕНТИФИКАЦИЯ ====================
 
@@ -39,8 +40,8 @@ function showAuthModal() {
     const modal = document.getElementById('authModal');
     modal.style.display = 'flex';
     document.getElementById('authStatus').textContent = '';
-    document.getElementById('loginEmail').value = 'Mokshin10@gmail.com';
-    document.getElementById('loginPassword').value = 'Vjriby';
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
 }
 
 function hideAuthModal() {
@@ -69,7 +70,6 @@ async function loginUser() {
         hideAuthModal();
         showStatus('Успешный вход! Режим редактирования', 'success');
         
-        // Выполняем отложенное действие редактирования
         if (isEditingAction) {
             if (editingRepairId) {
                 openEditForm(editingRepairId);
@@ -94,6 +94,7 @@ function logoutUser() {
     isGuestMode = true;
     isEditingAction = false;
     editingRepairId = null;
+    selectedRepairId = null;
     
     updateUIForAuthState();
     showStatus('Переход в гостевой режим', 'info');
@@ -419,6 +420,7 @@ document.addEventListener('DOMContentLoaded', function() {
             isGuestMode = true;
             isEditingAction = false;
             editingRepairId = null;
+            selectedRepairId = null;
         }
         
         updateUIForAuthState();
@@ -488,6 +490,11 @@ function setupEventListeners() {
         hideAuthModal();
     });
     
+    document.getElementById('closeAuthModal')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        hideAuthModal();
+    });
+    
     document.querySelectorAll('.car-option').forEach(option => {
         option.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -495,6 +502,8 @@ function setupEventListeners() {
             this.classList.add('active');
             currentCar = this.getAttribute('data-car');
             expandedRepairId = null;
+            selectedRepairId = null;
+            closeRepairModal();
             updateCarInfo();
             updateRepairsCards();
             updateCarStatsDisplay();
@@ -542,8 +551,16 @@ function setupEventListeners() {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
             const sortField = this.getAttribute('data-sort');
-            const sortOrder = this.getAttribute('data-order');
-            sortRepairsCards(sortField, sortOrder);
+            
+            if (currentSort === sortField) {
+                currentOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort = sortField;
+                currentOrder = 'desc';
+            }
+            
+            updateSortButtons();
+            updateRepairsCards();
         });
     });
     
@@ -611,26 +628,27 @@ function setupEventListeners() {
         toggleStructure();
     });
     
-    // Кнопки "Назад к списку ремонтов"
-    document.querySelectorAll('.back-to-list-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            closeAllForms();
-        });
-    });
-    
-    const modal = document.getElementById('authModal');
-    if (modal) {
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
+    const authModal = document.getElementById('authModal');
+    if (authModal) {
+        authModal.addEventListener('click', function(e) {
+            if (e.target === authModal) {
                 hideAuthModal();
             }
         });
     }
     
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
-            hideAuthModal();
+        if (e.key === 'Escape') {
+            const authModal = document.getElementById('authModal');
+            const repairModal = document.getElementById('repairModal');
+            
+            if (authModal && authModal.style.display === 'flex') {
+                hideAuthModal();
+            }
+            
+            if (repairModal && repairModal.style.display === 'flex') {
+                closeRepairModal();
+            }
         }
     });
     
@@ -747,9 +765,10 @@ function updateRepairsCards() {
     
     filteredRepairs.forEach(repair => {
         const isExpanded = expandedRepairId === repair.id;
+        const isSelected = selectedRepairId === repair.id;
         
         const card = document.createElement('div');
-        card.className = `repair-card ${isExpanded ? 'expanded' : ''}`;
+        card.className = `repair-card ${isExpanded ? 'expanded' : ''} ${isSelected ? 'selected' : ''}`;
         card.setAttribute('data-repair-id', repair.id);
         
         const displayDate = repair.date || '';
@@ -780,61 +799,249 @@ function updateRepairsCards() {
                 </div>
                 <div class="repair-card-price">${displayPrice}</div>
             </div>
-            ${isExpanded ? `
-            <div class="repair-card-details">
-                ${renderRepairDetails(repair)}
-            </div>
-            ` : ''}
         `;
         
+        // Добавляем детали ремонта если карточка развернута (для десктопа)
+        if (isExpanded && window.innerWidth > 768) {
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'repair-card-details';
+            detailsDiv.innerHTML = renderRepairDetails(repair);
+            card.appendChild(detailsDiv);
+            
+            // Добавляем обработчик событий для кнопки редактирования в деталях
+            setTimeout(() => {
+                const editBtn = detailsDiv.querySelector('.edit-repair-btn');
+                if (editBtn) {
+                    editBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const repairId = parseInt(this.getAttribute('data-repair-id'));
+                        checkAuthBeforeEdit(openEditForm, repairId);
+                    });
+                }
+            }, 100);
+        }
+        
         card.addEventListener('click', function(e) {
-            if (e.target.closest('.edit-repair-btn') || 
-                e.target.closest('.repair-card-details') ||
+            // Исключаем клики по кнопкам из обработки
+            if (e.target.closest('.btn') || 
+                e.target.closest('.edit-repair-btn') || 
                 e.target.closest('.repair-actions')) {
                 return;
             }
             
             const repairId = parseInt(this.getAttribute('data-repair-id'));
-            const wasExpanded = expandedRepairId === repairId;
             
-            if (wasExpanded) {
-                // Закрываем карточку
-                expandedRepairId = null;
+            // Для мобильных устройств открываем модальное окно
+            if (window.innerWidth <= 768) {
+                openRepairModal(repairId);
+                selectedRepairId = repairId;
                 updateRepairsCards();
             } else {
-                // Открываем новую карточку
-                expandedRepairId = repairId;
-                updateRepairsCards();
+                // Для десктопа используем механизм разворачивания
+                const wasExpanded = expandedRepairId === repairId;
                 
-                // Скроллим к верхней части новой открытой карточки
-                if (window.innerWidth <= 768) {
-                    setTimeout(() => {
-                        const expandedCard = document.querySelector(`.repair-card[data-repair-id="${repairId}"]`);
-                        if (expandedCard) {
-                            expandedCard.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'start'
-                            });
-                        }
-                    }, 100);
+                if (wasExpanded) {
+                    expandedRepairId = null;
+                    selectedRepairId = null;
+                } else {
+                    expandedRepairId = repairId;
+                    selectedRepairId = repairId;
                 }
+                
+                updateRepairsCards();
             }
         });
         
         repairsContainer.appendChild(card);
     });
     
+    updateStructureDisplay();
+}
+
+function openRepairModal(repairId) {
+    const car = carData[currentCar];
+    const repair = car.repairs.find(r => r.id === repairId);
+    
+    if (!repair) return;
+    
+    let modal = document.getElementById('repairModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'repairModal';
+        modal.className = 'repair-modal';
+        modal.innerHTML = `
+            <div class="repair-modal-close-container">
+                <button class="repair-modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="repair-modal-content">
+                <div class="repair-modal-body" id="repairModalBody"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        modal.querySelector('.repair-modal-close').addEventListener('click', function(e) {
+            e.stopPropagation();
+            closeRepairModal();
+        });
+        
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeRepairModal();
+            }
+        });
+    }
+    
+    const modalBody = document.getElementById('repairModalBody');
+    const repairDetailsHtml = renderRepairDetailsForModal(repair);
+    modalBody.innerHTML = repairDetailsHtml;
+    
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Добавляем обработчик для кнопки редактирования внутри модального окна
     setTimeout(() => {
-        document.querySelectorAll('.edit-repair-btn').forEach(btn => {
-            btn.addEventListener('click', function(e) {
+        const editBtn = modalBody.querySelector('.edit-repair-btn');
+        if (editBtn) {
+            editBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const repairId = parseInt(this.getAttribute('data-repair-id'));
+                closeRepairModal();
                 checkAuthBeforeEdit(openEditForm, repairId);
             });
-        });
+        }
     }, 100);
+}
+
+function closeRepairModal() {
+    const modal = document.getElementById('repairModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+        selectedRepairId = null;
+        updateRepairsCards();
+    }
+}
+
+function renderRepairDetailsForModal(repair) {
+    let html = `
+        <div class="repair-modal-header">
+            <div class="repair-modal-date">${repair.date || ''}</div>
+            <div class="repair-modal-mileage">${repair.mileage ? repair.mileage.toLocaleString('ru-RU') + ' км' : ''}</div>
+        </div>
+        <div class="repair-modal-title">${repair.short_work || 'Ремонтные работы'}</div>
+        <div class="repair-modal-sto">
+            <i class="fas fa-warehouse"></i> ${repair.sto || 'Не указано'}
+        </div>
+    `;
     
-    updateStructureDisplay();
+    if (repair.work_items && repair.work_items.length > 0) {
+        html += `
+            <div class="details-section">
+                <div class="modal-details-title">
+                    <i class="fas fa-tools"></i> Работы
+                </div>
+                <table class="modal-works-table">
+                    <thead>
+                        <tr>
+                            <th>Наименование</th>
+                            <th style="text-align: right;">Стоимость</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        repair.work_items.forEach(item => {
+            html += `
+                <tr>
+                    <td>${item.name || ''}</td>
+                    <td class="modal-work-price">
+                        ${(item.price || 0).toLocaleString('ru-RU')} руб
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td style="font-weight: 600;">Итого по работам:</td>
+                            <td style="text-align: right; font-weight: 600;">
+                                ${repair.work_items.reduce((sum, item) => sum + (item.price || 0), 0).toLocaleString('ru-RU')} руб
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        `;
+    }
+    
+    if (repair.part_items && repair.part_items.length > 0) {
+        html += `
+            <div class="details-section">
+                <div class="modal-details-title">
+                    <i class="fas fa-cogs"></i> Запчасти
+                </div>
+                
+                <div class="modal-parts-container">
+        `;
+        
+        // Все запчасти теперь находятся в одном контейнере
+        repair.part_items.forEach(item => {
+            html += `
+                <div class="modal-part-item">
+                    <div class="modal-part-name">${item.name || ''}</div>
+                    <div class="modal-part-details-wrapper">
+                        <div class="modal-part-details">
+                            ${item.manufacturer ? `<div class="modal-part-detail"><i class="fas fa-industry"></i> ${item.manufacturer}</div>` : ''}
+                            ${item.article ? `<div class="modal-part-detail"><i class="fas fa-barcode"></i> ${item.article}</div>` : ''}
+                            <div class="modal-part-detail"><i class="fas fa-layer-group"></i> ${item.quantity || 1}</div>
+                        </div>
+                        <div class="modal-part-price">
+                            ${(item.price || 0).toLocaleString('ru-RU')} руб
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    html += `
+        <div class="modal-details-total">
+            <div class="modal-total-label">Общая стоимость ремонта:</div>
+            <div class="modal-total-value">${(repair.total_price || 0).toLocaleString('ru-RU')} руб</div>
+        </div>
+    `;
+    
+    if (repair.notes && repair.notes.trim()) {
+        html += `
+            <div class="details-section">
+                <div class="modal-details-title">
+                    <i class="fas fa-sticky-note"></i> Примечания
+                </div>
+                <div class="modal-notes">
+                    ${repair.notes}
+                </div>
+            </div>
+        `;
+    }
+    
+    html += `
+        <div class="modal-repair-actions">
+            <button class="btn btn-secondary edit-repair-btn" data-repair-id="${repair.id}">
+                <i class="fas fa-edit"></i> Редактировать
+            </button>
+        </div>
+    `;
+    
+    return html;
 }
 
 function renderRepairDetails(repair) {
@@ -1205,7 +1412,6 @@ async function deleteRepair() {
 // ==================== ФОРМЫ И СКРОЛЛИНГ ====================
 
 function openAddForm() {
-    toggleBackButton(true);
     resetAddForm();
     
     document.getElementById('addRepairForm').classList.add('active');
@@ -1221,7 +1427,6 @@ function openEditForm(repairId) {
     
     if (!repair) return;
     
-    toggleBackButton(true);
     editingRepairId = repairId;
     
     document.getElementById('editRepairId').value = repairId;
@@ -1260,7 +1465,6 @@ function closeAllForms() {
     resetAddForm();
     editingRepairId = null;
     isEditingAction = false;
-    toggleBackButton(false);
     
     scrollToList();
 }
@@ -1277,13 +1481,6 @@ function resetAddForm() {
     document.getElementById('repairWorks').value = '';
     document.getElementById('repairParts').value = '';
     document.getElementById('repairNotes').value = '';
-}
-
-function toggleBackButton(show) {
-    const backButtons = document.querySelectorAll('.back-to-list-btn');
-    backButtons.forEach(btn => {
-        btn.style.display = show ? 'block' : 'none';
-    });
 }
 
 function scrollToForm(formId) {
@@ -1358,14 +1555,6 @@ function sortRepairs(repairs, sortBy, order) {
     });
 }
 
-function sortRepairsCards(sortField, sortOrder) {
-    currentSort = sortField;
-    currentOrder = sortOrder;
-    
-    updateSortButtons();
-    updateRepairsCards();
-}
-
 function updateSortButtons() {
     document.querySelectorAll('.sort-btn').forEach(btn => {
         const sortField = btn.getAttribute('data-sort');
@@ -1394,6 +1583,7 @@ function performSearch(term) {
     searchTimeout = setTimeout(() => {
         searchTerm = term.trim();
         expandedRepairId = null;
+        selectedRepairId = null;
         updateRepairsCards();
     }, searchDebounceDelay);
 }
@@ -1450,6 +1640,7 @@ function handleFileUpload(e) {
             const searchInput = document.getElementById('searchInput');
             if (searchInput) searchInput.value = '';
             expandedRepairId = null;
+            selectedRepairId = null;
             
             updateCarInfo();
             updateRepairsCards();
