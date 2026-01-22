@@ -39,8 +39,8 @@ function showAuthModal() {
     const modal = document.getElementById('authModal');
     modal.style.display = 'flex';
     document.getElementById('authStatus').textContent = '';
-    document.getElementById('loginEmail').value = 'Mokshin10@gmail.com';
-    document.getElementById('loginPassword').value = 'Vjriby';
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
 }
 
 function hideAuthModal() {
